@@ -26,7 +26,7 @@ SECRET_KEY = 'REMOVED'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['hooborrow-d21a3fe76bb0.herokuapp.com']
+ALLOWED_HOSTS = ['hooborrow-f55f42e63294.herokuapp.com']
 
 
 # Application definition
