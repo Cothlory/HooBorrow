@@ -11,7 +11,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import dj_database_url
+import os
 
+database_url = os.getenv('DATABASE_URL')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -76,16 +79,22 @@ WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-        'default': dj_database_url.config(
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=True,
-        )
-        'local': {
-            'ENGINE': 'django.db.backends.sqlite3',
+if database_url:
+    DATABASES = {
+            'default': dj_database_url.config(
+                conn_max_age=600,
+                conn_health_checks=True,
+                ssl_require=True,
+            )
+    }
+else:
+     DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',  # SQLite engine
             'NAME': BASE_DIR / 'db.sqlite3',
         }
+    } 
+        
         # 'default': {
         # 'ENGINE': 'django.db.backends.sqlite3',
         # 'NAME': BASE_DIR / 'db.sqlite3',
@@ -95,7 +104,6 @@ DATABASES = {
     #    'PASSWORD': 'REMOVED',
     #    'HOST': 'localhost',
     #    'PORT': '5433',
-    }
 
 
 
