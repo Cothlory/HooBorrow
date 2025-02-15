@@ -1,0 +1,17 @@
+{% load static %}
+{% block title %}Borrow | HooBorrow{% endblock %}
+{% block content %}
+<div class="my-4">
+    {% if borrow_items_list %}
+        <ul class="list-group">
+        {% for item in borrow_items_list %}
+            <li class="list-group-item">
+                <a href="{% url 'borrow:detail' item.id %}">{{ item.name }}</a>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p class="lead">No items are available to borrow.</p>
+    {% endif %}
+</div>
+{% endblock %}
