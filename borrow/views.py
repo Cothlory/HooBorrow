@@ -7,9 +7,6 @@ from django.utils import timezone
 
 from .models import ItemCategory, BorrowedItem
 
-# def home(request):
-#     return render(request, "home.html")
-
 def index(request):
     return render(request, 'borrow/index.html')
 
