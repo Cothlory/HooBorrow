@@ -29,7 +29,12 @@ SECRET_KEY = 'django-insecure-$)pe5t9qc_o^gv*xaa-7e!@ky&=qpz7x9zcp6=*v+4k70#xak4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'hooborrow-f55f42e63294.herokuapp.com']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'hooborrow-f55f42e63294.herokuapp.com',
+]
 
 
 # Application definition
@@ -95,18 +100,16 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',  # SQLite engine
             'NAME': BASE_DIR / 'db.sqlite3',
+        # USE FOLLOWING IF TESTING WITH POSTGRESQL ON HEROKU
+        #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        #    'NAME': 'de04vqp1clcq78',
+        #    'USER': 'uekrh43deta8b7',
+        #    'PASSWORD': 'p6ce23c219b3178b5841dea190afb68ffe1b245798a55d06a749653a7ae489cb4',
+        #    'HOST': 'c5hilnj7pn10vb.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com',
+        #    'PORT': '5432',
         }
-    } 
-        
-        # 'default': {
-        # 'ENGINE': 'django.db.backends.sqlite3',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-    #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
-    #    'NAME': 'HooBorrow_DB',
-    #    'USER': 'a15',
-    #    'PASSWORD': 'GetAInCS3240',
-    #    'HOST': 'localhost',
-    #    'PORT': '5433',
+    }
+
 
 
 
