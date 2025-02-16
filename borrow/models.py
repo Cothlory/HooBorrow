@@ -7,6 +7,7 @@ class ItemCategory(models.Model):
     name = models.CharField(max_length=200)
     quantity = models.IntegerField(default=0)
     instructions = models.CharField(max_length=500)
+    location = models.CharField(max_length=200)
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(category=self)
