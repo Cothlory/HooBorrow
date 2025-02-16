@@ -7,7 +7,7 @@
     {% bootstrap_css %}
     {% bootstrap_javascript %}
     <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
-    <link rel="stylesheet" href="{% static 'polls/style.css' %}">
+    <link rel="stylesheet" href="{% static 'main/style.css' %}">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
@@ -19,8 +19,8 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'borrow:index' %}">Borrow List</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'polls:index' %}">Polls</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'polls:add' %}">Add Poll</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
                 </ul>
             </div>
@@ -34,7 +34,7 @@
     
     <footer class="bg-light text-center py-3 mt-auto" style="background: rgba(255, 255, 255, 0.3) !important;">
         <div class="container">
-            <div>&copy; 2025 A-15, Chang Huang (<a href="https://github.com/Cothlory">Cothlory</a>)</div>
+            <div>&copy; 2025 Team <a href="https://github.com/orgs/uva-cs3240-s25/teams/a-15">A-15</a> CS3240 S25</div>
         </div>
     </footer>
 </body>
