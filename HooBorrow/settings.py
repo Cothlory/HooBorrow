@@ -29,7 +29,12 @@ SECRET_KEY = 'REMOVED'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'hooborrow-f55f42e63294.herokuapp.com']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    'hooborrow-f55f42e63294.herokuapp.com',
+]
 
 
 # Application definition
@@ -95,18 +100,16 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',  # SQLite engine
             'NAME': BASE_DIR / 'db.sqlite3',
+        # USE FOLLOWING IF TESTING WITH POSTGRESQL ON HEROKU
+        #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        #    'NAME': 'REMOVED',
+        #    'USER': 'REMOVED',
+        #    'PASSWORD': 'REMOVED',
+        #    'HOST': 'REMOVED',
+        #    'PORT': '5432',
         }
-    } 
-        
-        # 'default': {
-        # 'ENGINE': 'django.db.backends.sqlite3',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-    #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
-    #    'NAME': 'REMOVED',
-    #    'USER': 'a15',
-    #    'PASSWORD': 'REMOVED',
-    #    'HOST': 'localhost',
-    #    'PORT': '5433',
+    }
+
 
 
 
