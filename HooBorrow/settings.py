@@ -37,6 +37,7 @@ ALLOWED_HOSTS = ['localhost', 'hooborrow-f55f42e63294.herokuapp.com']
 INSTALLED_APPS = [
     'django_bootstrap5',
     'polls.apps.PollsConfig',
+    'borrow.apps.BorrowConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

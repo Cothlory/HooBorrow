@@ -1,0 +1,32 @@
+{% extends "borrow/base.html" %}
+
+{% block title %}{{ object.name }}{% endblock %}
+{% block content %}
+  <div class="my-4">
+    <h2>{{ object.name }}</h2>
+    <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
+    <p><strong>Instructions:</strong> {{ object.instructions }}</p>
+    <p><strong>Location:</strong> {{ object.location }}</p>
+    
+    <h2>Borrowers</h2>
+    {% if borrowers_info %}
+      <ul>
+        {% for borrower in borrowers_info %}
+          <li>
+            <strong>{{ borrower.borrower_name }}</strong> borrowed
+            {{ borrower.borrowed_quantity }} items. 
+            {% if borrower.is_late %}
+              <span style="color:red;">(Late)</span>
+            {% else %}
+              <span style="color:green;">(On Time)</span>
+            {% endif %}
+            <br>
+            <small>Due Date: {{ borrower.due_date|date:"F j, Y" }}</small>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No borrowers yet.</p>
+    {% endif %}
+  </div>
+{% endblock %}
