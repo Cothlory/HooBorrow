@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-$)pe5t9qc_o^gv*xaa-7e!@ky&=qpz7x9zcp6=*v+4k70#xak4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'hooborrow-f55f42e63294.herokuapp.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'hooborrow-f55f42e63294.herokuapp.com']
 
 
 # Application definition
@@ -43,7 +43,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'whitenoise.runserver_nostatic',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.patreon',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'HooBorrow.urls'
@@ -75,8 +82,23 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'HooBorrow.wsgi.application'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': '928332459306-qhn9v8vs87l1clbrdgkvp4uhdietf8l5.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        }
+    }
+}
+
+WSGI_APPLICATION = 'HooBorrow.wsgi.application'
+SITE_ID = 1
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

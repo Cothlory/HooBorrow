@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 from .models import Choice, Question
 from .forms import QuestionForm, ChoiceFormSet
@@ -78,3 +79,7 @@ def add_question(request):
         "question_form": question_form,
         "formset": formset,
     })
+
+@login_required
+def profile_view(request):
+    return render(request, 'account/profile.html')
