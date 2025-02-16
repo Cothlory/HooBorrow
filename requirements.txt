@@ -5,5 +5,7 @@ gunicorn==23.0.0
 psycopg2-binary==2.9.10
 sqlparse==0.5.3
 whitenoise==6.9.0
-django-heroku
-dj-database-url
+dj-database-url==2.3.0
+social-auth-app-django==5.4.3
+django-requests==0.0.2
+django-allauth==65.4.1

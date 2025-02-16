@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>{% block title %}HooBorrow{% endblock %}</title>
     {% load static django_bootstrap5 %}
+    {% load socialaccount %}
     {% bootstrap_css %}
     {% bootstrap_javascript %}
     <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
@@ -22,6 +23,20 @@
                     <li class="nav-item"><a class="nav-link" href="{% url 'polls:index' %}">Polls</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'polls:add' %}">Add Poll</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+                </ul>
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'account_logout' %}">Logout ({{ user.username }})</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'account_login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
