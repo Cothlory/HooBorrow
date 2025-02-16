@@ -4,7 +4,12 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 
 def home(request):
     return render(request, "home.html")
+
+@login_required
+def profile_view(request):
+    return render(request, 'account/profile.html')
