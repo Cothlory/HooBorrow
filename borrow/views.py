@@ -10,6 +10,9 @@ from .models import ItemCategory, BorrowedItem
 # def home(request):
 #     return render(request, "home.html")
 
+def index(request):
+    return render(request, 'borrow/index.html')
+
 class IndexView(generic.ListView):
     template_name = "borrow/index.html"
     context_object_name = "borrow_items_list"
