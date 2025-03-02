@@ -104,6 +104,10 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+ACCOUNT_FORMS = {
+    'login': 'main.forms.CustomLoginForm',
+}
+
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
 
