@@ -24,3 +24,15 @@ footer a {
 .main-content {
     flex: 1;
 }
+
+.form-control {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-check-input {
+    margin-left: 5px;
+}
