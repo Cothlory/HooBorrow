@@ -1,7 +1,20 @@
 {% extends "base.html" %}
 {% load socialaccount %}
 {% block content %}
-    <h1>Welcome, {{ user.username }}!</h1>
-    <p><a href="{% url 'account_logout' %}">Logout</a></p>
-    <p><a href="{% url 'account_change_password' %}">Change Password</a></p>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2>Welcome, {{ user.first_name }}!</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Manage your account settings and preferences.</p>
+                    <a href="{% url 'account_logout' %}" class="btn btn-danger">Logout</a>
+                    <a href="{% url 'account_change_password' %}" class="btn btn-secondary">Change Password</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
