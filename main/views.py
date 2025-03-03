@@ -12,4 +12,5 @@ def home(request):
 
 @login_required
 def profile_view(request):
-    return render(request, 'account/profile.html')
+    role = "librarian" if request.user.is_staff else "patron"
+    return render(request, 'account/profile.html', {'role': role})

@@ -10,6 +10,7 @@
                 </div>
                 <div class="card-body">
                     <p class="card-text">Manage your account settings and preferences.</p>
+                    <p class="card-text">Your current account type is <strong>{{ role }}</strong>.</p>
                     <a href="{% url 'account_logout' %}" class="btn btn-danger">Logout</a>
                     <a href="{% url 'account_change_password' %}" class="btn btn-secondary">Change Password</a>
                 </div>
