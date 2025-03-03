@@ -104,6 +104,15 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+ACCOUNT_FORMS = {
+    'login': 'main.forms.CustomLoginForm',
+}
+
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USERNAME_REQUIRED = True
+
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
 
