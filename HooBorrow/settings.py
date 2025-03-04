@@ -16,18 +16,11 @@ import os
 
 database_url = os.getenv('DATABASE_URL')
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dummy-secret-key')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'REMOVED'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -35,9 +28,6 @@ ALLOWED_HOSTS = [
     '0.0.0.0',
     'hooborrow-f55f42e63294.herokuapp.com',
 ]
-
-
-# Application definition
 
 INSTALLED_APPS = [
     'django_bootstrap5',
@@ -56,7 +46,6 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.patreon',
 ]
 
 MIDDLEWARE = [
@@ -94,16 +83,6 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'APP': {
-            'client_id': 'REMOVED',
-            'secret': 'REMOVED',
-            'key': ''
-        }
-    }
-}
-
 ACCOUNT_FORMS = {
     'login': 'main.forms.CustomLoginForm',
 }
@@ -116,9 +95,6 @@ ACCOUNT_USERNAME_REQUIRED = True
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 if database_url:
     DATABASES = {
             'default': dj_database_url.config(
@@ -130,23 +106,10 @@ if database_url:
 else:
      DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',  # SQLite engine
+            'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
-        # USE FOLLOWING IF TESTING WITH POSTGRESQL ON HEROKU
-        #    'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        #    'NAME': 'REMOVED',
-        #    'USER': 'REMOVED',
-        #    'PASSWORD': 'REMOVED',
-        #    'HOST': 'REMOVED',
-        #    'PORT': '5432',
         }
     }
-
-
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -163,10 +126,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -175,16 +134,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
