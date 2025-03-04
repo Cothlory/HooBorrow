@@ -103,7 +103,7 @@ ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USERNAME_REQUIRED = True
 
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
-SITE_ID = 1
+SITE_ID = 0
 
 if database_url:
     DATABASES = {
