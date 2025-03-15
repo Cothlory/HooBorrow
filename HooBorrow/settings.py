@@ -93,14 +93,13 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-ACCOUNT_FORMS = {
-    'login': 'main.forms.CustomLoginForm',
-}
+# ACCOUNT_FORMS = {
+#     'login': 'main.forms.CustomLoginForm',
+# }
 
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_USERNAME_REQUIRED = True
 
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
@@ -148,3 +147,5 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = '/accounts/role-select/'

@@ -1,17 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add {{ item_type }}</title>
-</head>
-<body>
-    <h1>Add a new {{ item_type }}</h1>
+{% extends "base.html" %}
 
-    <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Add Item</button>
-    </form>
+{% block content %}
+  <h2>Add {{ item_type }}</h2>
+  
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    {{ form.as_p }}
+    
+    <button type="submit">Save</button>
+  </form>
 
-    <a href="{% url 'item_list' %}">Back to item list</a>
-</body>
-</html>
+{% endblock %}
+

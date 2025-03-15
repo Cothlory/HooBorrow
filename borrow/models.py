@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.models import User
 
 # For storing photos of complex items
 class Photo(models.Model):
@@ -46,6 +47,7 @@ class ComplexItem(Item):
 
 
 class Patron(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     email = models.CharField(max_length=200)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)

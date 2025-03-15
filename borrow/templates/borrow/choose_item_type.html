@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Select Item Type to Add</h2>
+
+  <form method="POST">
+    {% csrf_token %}
+    <button type="submit" name="item_type" value="simple">Add Simple Item</button>
+    <button type="submit" name="item_type" value="complex">Add Complex Item</button>
+  </form>
+
+{% endblock %}
