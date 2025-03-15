@@ -3,16 +3,13 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.models import User
 
-# For storing photos of complex items
-class Photo(models.Model):
-    image = models.ImageField(upload_to='item_photos/')
-    description = models.CharField(max_length=500)
 
 class Item(models.Model):
     name = models.CharField(max_length=200)
     quantity = models.IntegerField(default=0)
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
+    photo = models.ImageField(upload_to='item_photos/')
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
@@ -23,7 +20,6 @@ class Item(models.Model):
         return self.name
 
 class SimpleItem(Item):
-    photo = models.OneToOneField(Photo, on_delete=models.CASCADE)
     
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
@@ -35,7 +31,6 @@ class SimpleItem(Item):
 
 class ComplexItem(Item):
     condition = models.CharField(max_length=200)
-    photo = models.ManyToManyField(Photo)  # Multiple photos for complex items
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)

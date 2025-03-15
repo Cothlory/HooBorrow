@@ -1,5 +1,5 @@
 from django import forms
-from .models import SimpleItem, ComplexItem, Photo
+from .models import SimpleItem, ComplexItem
 
 class SimpleItemForm(forms.ModelForm):
     class Meta:

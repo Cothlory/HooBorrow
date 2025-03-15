@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Item, SimpleItem, ComplexItem, Photo
+from .models import Item, SimpleItem, ComplexItem
 
 # Customizing the display of SimpleItem and ComplexItem under the Item admin
 class ItemAdmin(admin.ModelAdmin):
@@ -66,4 +66,3 @@ class ComplexItemAdmin(ItemAdmin):
 admin.site.register(SimpleItem, SimpleItemAdmin)
 admin.site.register(ComplexItem, ComplexItemAdmin)
 admin.site.register(Item)  # This registers the base model for reference
-admin.site.register(Photo)

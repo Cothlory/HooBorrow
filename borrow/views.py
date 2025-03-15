@@ -49,46 +49,56 @@ class DetailView(generic.DetailView):
 
 @login_required
 def add_item(request):
-    # Check if the user is a Librarian and has permission to add items
-    if isinstance(request.user, Librarian) and request.user.can_add_items:
-        if request.method == 'POST':
-            # Determine the selected item type from the form
-            item_type = request.POST.get('item_type')
-            if item_type == 'simple':
-                return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
-            elif item_type == 'complex':
-                return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
-        return render(request, 'choose_item_type.html')  # Show the item type selection page
-    else:
-        return HttpResponseForbidden("You do not have permission to add items.")
+    # Check if the user has a related Librarian instance and if they have permission to add items
+    try:
+        librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
+        if librarian.can_add_items:  # Check if they have permission
+            if request.method == 'POST':
+                # Determine the selected item type from the form
+                item_type = request.POST.get('item_type')
+                if item_type == 'simple':
+                    return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
+                elif item_type == 'complex':
+                    return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
+            return render(request, 'borrow/choose_item_type.html')  # Show the item type selection page
+        else:
+            return HttpResponseForbidden("You do not have permission to add items.")  # User doesn't have permission
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")  # If the user is not a librarian
 
 
-@login_required
 def add_simple_item(request):
-    if isinstance(request.user, Librarian) and request.user.can_add_items:
-        if request.method == 'POST':
-            form = SimpleItemForm(request.POST, request.FILES)
-            if form.is_valid():
-                form.save()
-                return redirect('item_list')  # Redirect to item list or another view
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+        if librarian.can_add_items:
+            if request.method == 'POST':
+                form = SimpleItemForm(request.POST, request.FILES)
+                if form.is_valid():
+                    form.save()
+                    return redirect('home')  # Redirect to item list or another view
+            else:
+                form = SimpleItemForm()
+            
+            return render(request, 'borrow/add_simple_item.html', {'form': form, 'item_type': 'Simple Item'})
         else:
-            form = SimpleItemForm()
-        
-        return render(request, 'add_item.html', {'form': form, 'item_type': 'Simple Item'})
-    else:
-        return HttpResponseForbidden("You do not have permission to add items.")
+            return HttpResponseForbidden("You do not have permission to add items.")
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
 
-@login_required
 def add_complex_item(request):
-    if isinstance(request.user, Librarian) and request.user.can_add_items:
-        if request.method == 'POST':
-            form = ComplexItemForm(request.POST, request.FILES)
-            if form.is_valid():
-                form.save()
-                return redirect('item_list')  # Redirect to item list or another view
-        else:
-            form = ComplexItemForm()
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+        if librarian.can_add_items:
+            if request.method == 'POST':
+                form = ComplexItemForm(request.POST, request.FILES)
+                if form.is_valid():
+                    form.save()
+                    return redirect('home')  # Redirect to item list or another view
+            else:
+                form = ComplexItemForm()
 
-        return render(request, 'add_item.html', {'form': form, 'item_type': 'Complex Item'})
-    else:
-        return HttpResponseForbidden("You do not have permission to add items.")
+            return render(request, 'borrow/add_complex_item.html', {'form': form, 'item_type': 'Complex Item'})
+        else:
+            return HttpResponseForbidden("You do not have permission to add items.")
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
