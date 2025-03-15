@@ -7,14 +7,24 @@ class Photo(models.Model):
     image = models.ImageField(upload_to='item_photos/')
     description = models.CharField(max_length=500)
 
-class SimpleItem(models.Model):
+class Item(models.Model):
     name = models.CharField(max_length=200)
     quantity = models.IntegerField(default=0)
-    instructions = models.CharField(max_length=500)
     location = models.CharField(max_length=200)
+    instructions = models.CharField(max_length=500)
 
     def list_borrowers(self):
-        borrowed_items = BorrowedItem.objects.filter(category=self)
+        borrowed_items = BorrowedItem.objects.filter(item=self)
+        borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
+        return borrowers
+
+    def __str__(self):
+        return self.name
+
+class SimpleItem(Item):
+
+    def list_borrowers(self):
+        borrowed_items = BorrowedItem.objects.filter(item=self)
         borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
         return borrowers
     
@@ -22,14 +32,11 @@ class SimpleItem(models.Model):
         return self.name
 
 class ComplexItem(models.Model):
-    name = models.CharField(max_length=200)
     condition = models.CharField(max_length=200)
     photos = models.ManyToManyField(Photo)  # Multiple photos for complex items
-    quantity = models.IntegerField(default=0)
-    location = models.CharField(max_length=200)
 
     def list_borrowers(self):
-        borrowed_items = BorrowedItem.objects.filter(complex_item=self)
+        borrowed_items = BorrowedItem.objects.filter(item=self)
         borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
         return borrowers
 
@@ -69,10 +76,10 @@ class Patron(models.Model):
             return True
         return False
 
-    def return_category(self, category, quantity):
+    def return_simple_item(self, simpleItem, quantity):
         borrowed_item = BorrowedItem.objects.filter(
             borrower=self,
-            simple_item=category
+            simple_item=simple_item
         ).first()
 
         if borrowed_item and borrowed_item.quantity >= quantity:
@@ -110,35 +117,35 @@ class Patron(models.Model):
 
 
 class BorrowedItem(models.Model):
+    BORROWED_ITEM_TYPES = [
+        ('SIMPLE', 'Simple Item'),
+        ('COMPLEX', 'Complex Item'),
+    ]
+    
     borrower = models.ForeignKey(Patron, on_delete=models.CASCADE)
-    simple_item = models.ForeignKey(SimpleItem, null=True, blank=True, on_delete=models.CASCADE)
-    complex_item = models.ForeignKey(ComplexItem, null=True, blank=True, on_delete=models.CASCADE)
+    item = models.ForeignKey('Item', on_delete=models.CASCADE)
     quantity = models.IntegerField()
     due_date = models.DateTimeField()
     returned = models.BooleanField(default=False)
+    item_type = models.CharField(max_length=7, choices=BORROWED_ITEM_TYPES)
 
     def __str__(self):
-        if self.simple_item:
-            return f"{self.borrower.name} borrowed {self.quantity} of {self.simple_item.name}"
-        return f"{self.borrower.name} borrowed {self.quantity} of {self.complex_item.name}"
+        if self.item_type == 'SIMPLE':
+            return f"{self.borrower.name} borrowed {self.quantity} of {self.item.simpleitem.name}"
+        return f"{self.borrower.name} borrowed {self.quantity} of {self.item.complexitem.name}"
 
     def is_late(self):
         if self.returned:
             return False
         return timezone.now() > self.due_date
-    
+
     def return_item(self):
         self.returned = True
         self.save()
 
 
 class Librarian(Patron):
-    def add_item(self, simple_item=None, complex_item=None):
-        if simple_item:
-            simple_item.save()
-            print(f"Librarian added simple item category: {simple_item.name}")
-        if complex_item:
-            complex_item.save()
-            print(f"Librarian added complex item: {complex_item.name}")
-
+    def add_item(self, item: Item):
+        item.save()
+        print(f"Librarian added item: {item.name}")
 
