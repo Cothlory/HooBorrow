@@ -22,7 +22,8 @@ class Item(models.Model):
         return self.name
 
 class SimpleItem(Item):
-
+    photo = models.OneToOneField(Photo, on_delete=models.CASCADE)
+    
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
         borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
@@ -33,7 +34,7 @@ class SimpleItem(Item):
 
 class ComplexItem(models.Model):
     condition = models.CharField(max_length=200)
-    photos = models.ManyToManyField(Photo)  # Multiple photos for complex items
+    photo = models.ManyToManyField(Photo)  # Multiple photos for complex items
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
@@ -47,6 +48,7 @@ class ComplexItem(models.Model):
 class Patron(models.Model):
     name = models.CharField(max_length=200)
     email = models.CharField(max_length=200)
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
 
     def borrow_simple_item(self, item, quantity, days_to_return=7):
         if item.quantity >= quantity: 
@@ -145,7 +147,17 @@ class BorrowedItem(models.Model):
 
 
 class Librarian(Patron):
+    can_add_items = models.BooleanField(default=True)
+
     def add_item(self, item: Item):
-        item.save()
-        print(f"Librarian added item: {item.name}")
+        if self.can_add_items:
+            item.save()
+            print(f"Librarian {self.name} added item: {item.name}")
+        else:
+            print(f"{self.name} does not have permission to add items.")
+
+    def delete_item(self, item: Item):
+        item.delete()
+        print(f"Librarian {self.name} deleted item: {item.name}")
+
 
