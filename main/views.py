@@ -14,7 +14,6 @@ def home(request):
 
 @login_required
 def profile_view(request):
-    # Initialize role as "unknown" by default
     role = "unknown"
     
     # Check if the user has a related Librarian instance
@@ -31,9 +30,17 @@ def profile_view(request):
     except Patron.DoesNotExist:
         patron = None
 
-    # If the user is both a Patron and a Librarian, you can handle it as needed
     if librarian and patron:
-        role = "librarian"  # Or "patron" based on your preference
+        role = "librarian" 
+        
+     # Handle POST request to upload profile photo
+    if request.method == 'POST' and request.FILES.get('profile_photo'):
+        # Ensure that the user has a Patron instance
+        if patron:
+            photo = request.FILES['profile_photo']
+            patron.profile_photo = photo
+            patron.save()
+            return redirect('profile')  # Redirect to avoid re-posting the form on refresh
 
     # Pass the role to the template
     return render(request, 'account/profile.html', {'role': role})
