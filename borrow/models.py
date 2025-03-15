@@ -32,7 +32,7 @@ class SimpleItem(Item):
     def __str__(self):
         return self.name
 
-class ComplexItem(models.Model):
+class ComplexItem(Item):
     condition = models.CharField(max_length=200)
     photo = models.ManyToManyField(Photo)  # Multiple photos for complex items
 
