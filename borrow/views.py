@@ -1,12 +1,12 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponseRedirect, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
 
-from .models import Item, BorrowedItem, SimpleItem, ComplexItem
-
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem
+from .forms import SimpleItemForm, ComplexItemForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -46,4 +46,33 @@ class DetailView(generic.DetailView):
         context['borrowers_info'] = borrowers_info
         return context
 
-# class AddView():
+
+def add_simple_item(request):
+    # Check if the user is a Librarian and has permission to add items
+    if isinstance(request.user, Librarian) and request.user.can_add_items:
+        if request.method == 'POST':
+            form = SimpleItemForm(request.POST, request.FILES)
+            if form.is_valid():
+                form.save()
+                return redirect('item_list')  # Redirect to item list or another view
+        else:
+            form = SimpleItemForm()
+        
+        return render(request, 'add_item.html', {'form': form, 'item_type': 'Simple Item'})
+    else:
+        return HttpResponseForbidden("You do not have permission to add items.")
+
+def add_complex_item(request):
+    if isinstance(request.user, Librarian) and request.user.can_add_items:
+        if request.method == 'POST':
+            form = ComplexItemForm(request.POST, request.FILES)
+            if form.is_valid():
+                form.save()
+                return redirect('item_list')  # Redirect to item list or another view
+        else:
+            form = ComplexItemForm()
+
+        return render(request, 'add_item.html', {'form': form, 'item_type': 'Complex Item'})
+    else:
+        return HttpResponseForbidden("You do not have permission to add items.")
+
