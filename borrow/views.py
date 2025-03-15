@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem
 from .forms import SimpleItemForm, ComplexItemForm
@@ -46,9 +47,24 @@ class DetailView(generic.DetailView):
         context['borrowers_info'] = borrowers_info
         return context
 
-
-def add_simple_item(request):
+@login_required
+def add_item(request):
     # Check if the user is a Librarian and has permission to add items
+    if isinstance(request.user, Librarian) and request.user.can_add_items:
+        if request.method == 'POST':
+            # Determine the selected item type from the form
+            item_type = request.POST.get('item_type')
+            if item_type == 'simple':
+                return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
+            elif item_type == 'complex':
+                return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
+        return render(request, 'choose_item_type.html')  # Show the item type selection page
+    else:
+        return HttpResponseForbidden("You do not have permission to add items.")
+
+
+@login_required
+def add_simple_item(request):
     if isinstance(request.user, Librarian) and request.user.can_add_items:
         if request.method == 'POST':
             form = SimpleItemForm(request.POST, request.FILES)
@@ -62,6 +78,7 @@ def add_simple_item(request):
     else:
         return HttpResponseForbidden("You do not have permission to add items.")
 
+@login_required
 def add_complex_item(request):
     if isinstance(request.user, Librarian) and request.user.can_add_items:
         if request.method == 'POST':
@@ -75,4 +92,3 @@ def add_complex_item(request):
         return render(request, 'add_item.html', {'form': form, 'item_type': 'Complex Item'})
     else:
         return HttpResponseForbidden("You do not have permission to add items.")
-
