@@ -149,3 +149,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/accounts/role-select/'
+
+# MEDIA_URL = '/item_photos/'
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'item_photos/')
