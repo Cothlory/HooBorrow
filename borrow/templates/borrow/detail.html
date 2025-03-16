@@ -15,6 +15,16 @@
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
     <p><strong>Instructions:</strong> {{ object.instructions }}</p>
     <p><strong>Location:</strong> {{ object.location }}</p>
+
+    {% if request.user.is_authenticated %}
+      {% if borrowed %}
+          <p>You have already borrowed this item.</p>
+      {% else %}
+          <a href="{% url 'borrow:borrow_item' pk=object.pk %}" class="btn btn-primary">Borrow Item</a>
+      {% endif %}
+    {% else %}
+        <p>You need to be logged in to borrow this item.</p>
+    {% endif %}
     
     <h2>Borrowers</h2>
     {% if borrowers_info %}

@@ -4,7 +4,7 @@ from .models import Item, SimpleItem, ComplexItem
 # Customizing the display of SimpleItem and ComplexItem under the Item admin
 class ItemAdmin(admin.ModelAdmin):
     # Add fields for SimpleItem and ComplexItem
-    list_display = ('name', 'quantity', 'location', 'instructions', 'item_type', 'get_condition', 'get_photos')
+    list_display = ('name', 'quantity', 'location', 'instructions', 'item_type', 'get_condition', 'photo')
 
     search_fields = ('name', 'location')
 
@@ -14,15 +14,6 @@ class ItemAdmin(admin.ModelAdmin):
             return obj.condition
         return "N/A"
     get_condition.short_description = 'Condition'
-
-    # Display photos only for ComplexItem
-    def get_photos(self, obj):
-        if isinstance(obj, ComplexItem):
-            return ", ".join([photo.image.url for photo in obj.photo.all()])
-        elif isinstance(obj, SimpleItem):
-            return obj.photo.image.url if obj.photo else "No photo"
-        return "No photo"
-    get_photos.short_description = 'Photos'
 
     # Determine the item type based on the model class
     def item_type(self, obj):
