@@ -47,17 +47,18 @@ class Patron(models.Model):
     email = models.CharField(max_length=200)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
 
-    def borrow_simple_item(self, item, quantity, days_to_return=7):
-        if item.quantity >= quantity: 
+    def borrow_simple_item(self, simple_item, quantity, days_to_return=7):
+        if simple_item.quantity >= quantity: 
             due_date = timezone.now() + timedelta(days=days_to_return)
             borrowed_item = BorrowedItem.objects.create(
                 borrower=self,
-                simple_item=item, 
+                item=simple_item, 
                 quantity=quantity,
-                due_date=due_date
+                due_date=due_date,
+                item_type = 'SIMPLE'
             )
-            item.quantity -= quantity
-            item.save()
+            simple_item.quantity -= quantity
+            simple_item.save()
             return True
         return False
 
@@ -66,19 +67,20 @@ class Patron(models.Model):
             due_date = timezone.now() + timedelta(days=days_to_return)
             borrowed_item = BorrowedItem.objects.create(
                 borrower=self,
-                complex_item=complex_item,
+                item=complex_item,
                 quantity=1,
-                due_date=due_date
+                due_date=due_date,
+                item_type='COMPLEX'
             )
             complex_item.quantity -= 1
             complex_item.save()
             return True
         return False
 
-    def return_simple_item(self, simpleItem, quantity):
+    def return_simple_item(self, simple_item, quantity):
         borrowed_item = BorrowedItem.objects.filter(
             borrower=self,
-            simple_item=simple_item
+            item=simple_item
         ).first()
 
         if borrowed_item and borrowed_item.quantity >= quantity:
@@ -88,15 +90,15 @@ class Patron(models.Model):
             if borrowed_item.quantity == 0:
                 borrowed_item.delete()
             
-            category.quantity += quantity
-            category.save()
+            simple_item.quantity += quantity
+            simple_item.save()
             return True
         return False
 
     def return_complex_item(self, complex_item, quantity):
         borrowed_item = BorrowedItem.objects.filter(
             borrower=self,
-            complex_item=complex_item
+            item=complex_item
         ).first()
 
         if borrowed_item and borrowed_item.quantity >= quantity:

@@ -10,3 +10,6 @@ class ComplexItemForm(forms.ModelForm):
     class Meta:
         model = ComplexItem
         fields = ['name', 'quantity', 'location', 'instructions', 'condition', 'photo']
+
+class QuantityForm(forms.Form):
+    quantity = forms.IntegerField(min_value=1, label="Quantity", required=True)
