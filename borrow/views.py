@@ -1,11 +1,13 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponseRedirect, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
-from .models import ItemCategory, BorrowedItem
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem
+from .forms import SimpleItemForm, ComplexItemForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -15,22 +17,23 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
-        return ItemCategory.objects.all().order_by("name")
+        # Get all items (SimpleItems and ComplexItems) from the database
+        return Item.objects.all().order_by("name")
+
 
 class DetailView(generic.DetailView):
-    model = ItemCategory
+    model = Item
     template_name = "borrow/detail.html"
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # get the ItemCategory instance
-        item_category = self.get_object()
+        item = self.get_object()
         
-        # get the borrowers related to this ItemCategory
-        borrowed_items = BorrowedItem.objects.filter(category=item_category)
+        # Get the BorrowedItem instances related to this item (whether it's simple or complex)
+        borrowed_items = BorrowedItem.objects.filter(item=item)
         
-        # create a list of dictionaries with borrower names and the quantities they borrowed
+        # Create a list of dictionaries with borrower names and the quantities they borrowed
         borrowers_info = []
         for borrowed_item in borrowed_items:
             borrowers_info.append({
@@ -40,6 +43,62 @@ class DetailView(generic.DetailView):
                 "is_late": borrowed_item.is_late()
             })
         
-        # add the additional data to the context
+        # Add the additional data to the context
         context['borrowers_info'] = borrowers_info
         return context
+
+@login_required
+def add_item(request):
+    # Check if the user has a related Librarian instance and if they have permission to add items
+    try:
+        librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
+        if librarian.can_add_items:  # Check if they have permission
+            if request.method == 'POST':
+                # Determine the selected item type from the form
+                item_type = request.POST.get('item_type')
+                if item_type == 'simple':
+                    return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
+                elif item_type == 'complex':
+                    return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
+            return render(request, 'borrow/choose_item_type.html')  # Show the item type selection page
+        else:
+            return HttpResponseForbidden("You do not have permission to add items.")  # User doesn't have permission
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")  # If the user is not a librarian
+
+
+def add_simple_item(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+        if librarian.can_add_items:
+            if request.method == 'POST':
+                form = SimpleItemForm(request.POST, request.FILES)
+                if form.is_valid():
+                    form.save()
+                    return redirect('home')  # Redirect to item list or another view
+            else:
+                form = SimpleItemForm()
+            
+            return render(request, 'borrow/add_simple_item.html', {'form': form, 'item_type': 'Simple Item'})
+        else:
+            return HttpResponseForbidden("You do not have permission to add items.")
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+def add_complex_item(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+        if librarian.can_add_items:
+            if request.method == 'POST':
+                form = ComplexItemForm(request.POST, request.FILES)
+                if form.is_valid():
+                    form.save()
+                    return redirect('home')  # Redirect to item list or another view
+            else:
+                form = ComplexItemForm()
+
+            return render(request, 'borrow/add_complex_item.html', {'form': form, 'item_type': 'Complex Item'})
+        else:
+            return HttpResponseForbidden("You do not have permission to add items.")
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
