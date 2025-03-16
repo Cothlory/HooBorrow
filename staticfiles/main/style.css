@@ -14,7 +14,8 @@ body {
     flex-direction: column;
     background: url("/static/main/images/background.png") no-repeat center center fixed;
     background-size: cover;
-    padding-top: 60px;
+    padding-top: 40px;
+    padding-bottom: 40px;
 }
 
 footer a {
