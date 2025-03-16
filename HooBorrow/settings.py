@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -150,5 +151,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/accounts/role-select/'
 
-# MEDIA_URL = '/item_photos/'
-# MEDIA_ROOT = os.path.join(BASE_DIR, 'item_photos/')
+# AWS S3 Configuration for Media Files
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')  # Change if needed
+
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default":{
+        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
+    },
+
+    "staticfiles": {
+        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
+    },
+}
