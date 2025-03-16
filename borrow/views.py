@@ -1,13 +1,14 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect, HttpResponseForbidden
+from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem
-from .forms import SimpleItemForm, ComplexItemForm
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron
+from .forms import SimpleItemForm, ComplexItemForm, QuantityForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -46,6 +47,50 @@ class DetailView(generic.DetailView):
         # Add the additional data to the context
         context['borrowers_info'] = borrowers_info
         return context
+
+def borrow_item(request, pk):
+    try:
+        patron = Patron.objects.get(user=request.user)
+    except Patron.DoesNotExist:
+        return redirect('account:profile')  # Redirect if not a Patron
+    
+    try:
+        simpleitem = SimpleItem.objects.get(pk=pk)
+        complexitem = None
+    except SimpleItem.DoesNotExist:
+        simpleitem = None
+        try:
+            complexitem = ComplexItem.objects.get(pk=pk)
+        except ComplexItem.DoesNotExist:
+            return HttpResponseNotFound("Item not found")
+    
+    # Create a form instance with POST data if the form is submitted
+    form = QuantityForm(request.POST or None)
+    
+    if request.method == "POST" and form.is_valid():
+        quantity = form.cleaned_data['quantity']
+        
+        success = False
+        
+        if simpleitem:
+            success = patron.borrow_simple_item(simpleitem, quantity)
+        elif complexitem:
+            success = patron.borrow_complex_item(complexitem)
+
+        
+        if success:
+            return redirect('borrow:detail', pk=pk)
+        else:
+            messages.error(request, "Item borrowing failed. Please try again.")
+            return redirect('borrow:borrow_item', pk=pk) # give feedback to user 
+
+    
+    context = {
+        'item': simpleitem if simpleitem else complexitem,
+        'item_type': 'simple' if simpleitem else 'complex', 
+        'form': form,
+    }
+    return render(request, 'borrow/borrow.html', context)
 
 @login_required
 def add_item(request):
