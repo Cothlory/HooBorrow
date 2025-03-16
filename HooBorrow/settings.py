@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -85,6 +86,10 @@ AUTHENTICATION_BACKENDS = [
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
         'APP': {
             'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
             'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
@@ -93,14 +98,13 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-ACCOUNT_FORMS = {
-    'login': 'main.forms.CustomLoginForm',
-}
+# ACCOUNT_FORMS = {
+#     'login': 'main.forms.CustomLoginForm',
+# }
 
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_USERNAME_REQUIRED = True
 
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
@@ -148,3 +152,25 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = '/accounts/role-select/'
+
+# AWS S3 Configuration for Media Files
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default":{
+        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
+    },
+
+    "staticfiles": {
+        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
+    },
+}
