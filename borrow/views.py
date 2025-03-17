@@ -147,3 +147,58 @@ def add_complex_item(request):
             return HttpResponseForbidden("You do not have permission to add items.")
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+
+def manage_users(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
+        
+        if librarian.can_add_items:
+            patrons = Patron.objects.all()
+            librarians = Librarian.objects.all()
+            
+            # Combine the users into a single list with role information
+            users = []
+            for patron in patrons:
+                role = 'Librarian' if Librarian.objects.filter(user=patron.user).exists() else 'Patron'
+
+                users.append({
+                    'user': patron.user,
+                    'name': patron.name,
+                    'email': patron.email,
+                    'role': role
+                })
+            print(users)
+            
+            if request.method == 'POST':
+                user_id = request.POST.get('promote_user_id')
+                
+                try:
+                    patron = Patron.objects.get(user__id=user_id)
+                    user = patron.user
+                    name = patron.name
+                    email = patron.email
+                    
+                    # Check if the user is already a librarian
+                    if isinstance(patron, Librarian):
+                        messages.error(request, f"{name} is already a librarian.")
+                    else:
+                        patron.delete() 
+                        # Promote patron to librarian
+                        librarian = Librarian.objects.create(user=user, name=name, email=email)
+                        librarian.save()
+
+                        messages.success(request, f"{patron.name} has been promoted to Librarian.")
+                        return redirect('borrow:manage_users')  # Redirect after successful promotion
+
+                except Patron.DoesNotExist:
+                    messages.error(request, "Patron not found.")
+
+            # If GET request, render the list of users
+            return render(request, 'borrow/manage_users.html', {'users': users})
+
+        else: 
+            return HttpResponseForbidden("You do not have permission to add items.")
+    
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")

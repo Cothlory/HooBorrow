@@ -39,4 +39,3 @@ def profile_view(request):
         return redirect('profile')
 
     return render(request, 'account/profile.html', {'role': role})
-
