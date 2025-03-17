@@ -153,7 +153,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = '/accounts/role-select/'
+LOGIN_REDIRECT_URL = '/accounts/profile/'
 
 # AWS S3 Configuration for Media Files
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')

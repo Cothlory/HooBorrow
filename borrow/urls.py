@@ -10,4 +10,5 @@ urlpatterns = [
     path('add_simple_item/', views.add_simple_item, name='add_simple_item'),
     path('add_complex_item/', views.add_complex_item, name='add_complex_item'),
     path('borrow/<int:pk>/', views.borrow_item, name='borrow_item'),
+    path('manage-users/', views.manage_users, name='manage_users'),
 ]
