@@ -25,6 +25,5 @@ urlpatterns = [
     path('borrow/', include('borrow.urls')),
     path('accounts/', include('allauth.urls')),
     path('accounts/profile/', views.profile_view, name='profile'),  # Profile page URL
-    path('accounts/role-select/', views.role_select, name='role_select'),
     path('', views.home, name='home'),
 ]

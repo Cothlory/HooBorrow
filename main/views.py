@@ -14,54 +14,28 @@ def home(request):
 
 @login_required
 def profile_view(request):
-    role = "unknown"
+    # Ensure the user has a Patron instance; if not, create one
+    patron, created = Patron.objects.get_or_create(user=request.user, email = request.user.email, name = request.user.get_full_name())
+
+    # If a new Patron object was just created, redirect to profile to ensure smooth flow
+    if created:
+        return redirect('profile')
+
+    # Check if the user has a Librarian instance
+    librarian = Librarian.objects.filter(user=request.user).first()
     
-    # Check if the user has a related Librarian instance
-    try:
-        librarian = Librarian.objects.get(user=request.user)
+    # Determine user role: librarian > patron > unknown
+    if librarian:
         role = "librarian"
-    except Librarian.DoesNotExist:
-        librarian = None
-
-    # Check if the user has a related Patron instance
-    try:
-        patron = Patron.objects.get(user=request.user)
+    elif patron:
         role = "patron"
-    except Patron.DoesNotExist:
-        patron = None
+    else:
+        role = "unknown"
 
-    if librarian and patron:
-        role = "librarian" 
-        
-     # Handle POST request to upload profile photo
+    # Handle profile photo upload
     if request.method == 'POST' and request.FILES.get('profile_photo'):
-        # Ensure that the user has a Patron instance
-        if patron:
-            photo = request.FILES['profile_photo']
-            patron.profile_photo = photo
-            patron.save()
-            return redirect('profile')  # Redirect to avoid re-posting the form on refresh
+        patron.profile_photo = request.FILES['profile_photo']
+        patron.save()
+        return redirect('profile')
 
-    # Pass the role to the template
     return render(request, 'account/profile.html', {'role': role})
-
-@login_required
-def role_select(request):
-
-    # Check if the user has already selected a role
-    if hasattr(request.user, 'librarian') or hasattr(request.user, 'patron'):
-        return redirect('home')  # If they already have a role, redirect to home
-    
-    if request.method == 'POST':
-        role = request.POST.get('role')
-        email = request.user.email
-        name = request.user.get_full_name() 
-
-        if role == 'librarian':
-            Librarian.objects.create(user=request.user, name=name, email=email )  # Create a librarian instance
-        elif role == 'patron':
-            Patron.objects.create(user=request.user, name=name , email=email )  # Create a patron instance
-        
-        return redirect('home')  # Redirect to the home page after selecting a role
-    
-    return render(request, 'account/role_select.html')
