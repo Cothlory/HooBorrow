@@ -40,7 +40,10 @@
             </div>
           {% endif %}
           <br/>
-          <a href="{% url 'account_logout' %}" class="btn btn-danger">Logout</a>
+          <form method="POST" action="{% url 'account_logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Logout</button>
+          </form>
           <a href="{% url 'account_change_password' %}" class="btn btn-secondary">Change Password</a>
         </div>
       </div>
