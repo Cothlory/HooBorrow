@@ -163,10 +163,10 @@ class Librarian(Patron):
 class Collections(models.Model):
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
-    items_list = models.ManytoManyField(Item)
+    items_list = models.ManyToManyField(Item)
     is_collection_private = models.BooleanField(default=False)
     creator = models.ForeignKey(Patron, on_delete=models.CASCADE, related_name='creator')
-    allowed_users = models.ManytoManyField(Patron)
+    allowed_users = models.ManyToManyField(Patron)
 
 
 # class Library(models.Model): 
