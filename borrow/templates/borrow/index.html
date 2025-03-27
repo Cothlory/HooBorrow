@@ -6,19 +6,57 @@
 {% block title %}Borrow | HooBorrow{% endblock %}
 {% block content %}
 <div class="my-4">
-    <h2> Browse Items</h2>
+    <h2>Browse Items</h2>
     {% if borrow_items_list %}
-        <ul class="list-group">
-        {% for item in borrow_items_list %}
-            {% if item|can_view:request.user %}
-              <li class="list-group-item">
-                  <a href="{% url 'borrow:detail' item.id %}">{{ item.name }}</a>
-              </li>
-            {% endif %}
-        {% endfor %}
-        </ul>
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for item in borrow_items_list %}
+                {% if item|can_view:request.user and item.collections.all|length == 0 %}
+                    <div class="col">
+                        <div class="card h-100">
+                            {% if item.photo %}
+                                <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                            {% else %}
+                                <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">{{ item.name }}</h5>
+                                <p class="card-text">Quantity: {{ item.quantity }}</p>
+                                <p class="card-text">Location: {{ item.location }}</p>
+                            </div>
+                            <div class="card-footer text-center">
+                                <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
     {% else %}
         <p class="lead">No items are available to borrow.</p>
+    {% endif %}
+
+    <hr>
+    <h2>Browse Collections</h2>
+    {% if collections_list %}
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for collection in collections_list %}
+                {% if collection|can_view_collection:request.user %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ collection.title }}</h5>
+                                <p class="card-text">{{ collection.description }}</p>
+                            </div>
+                            <div class="card-footer text-center">
+                                <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="lead">No collections available.</p>
     {% endif %}
 </div>
 {% endblock %}
