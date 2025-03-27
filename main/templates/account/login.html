@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load socialaccount %}
-
 {% block content %}
-  <h2>Log in</h2>
-  <a href="{% provider_login_url 'google' %}" class="btn btn-primary">Log in with Google</a>
-
-  <p>Don't have an account? <a href="{% url 'account_signup' %}" style="text-decoration:none" class="text-primary">Sign up</a></p>
+<div class="my-4">
+  <h2>Log in / Sign up</h2>
+  </br>
+  <form method="POST" action="{% provider_login_url 'google' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Log in with Google</button>
+  </form>
+</div>
 {% endblock %}
-
-

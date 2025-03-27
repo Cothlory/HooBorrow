@@ -40,15 +40,20 @@
             </li>
             {% if user.patron.profile_photo %}
               <li class="nav-item">
-                <img src="{{ user.patron.profile_photo.url }}" alt="Profile Photo" class="rounded-circle" style="width: 30px; height: 30px; object-fit: cover;">
+                <img src="{{ user.patron.profile_photo.url }}" 
+                     alt="Profile Photo" 
+                     class="rounded-circle" 
+                     style="width: 30px; height: 30px; object-fit: cover;">
               </li>
             {% endif %}
+            <li class="nav-item">
+              <button type="button" class="btn btn-link nav-link" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                Logout
+              </button>
+            </li>
           {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'account_login' %}">Log In</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
+              <a class="nav-link" href="{% url 'account_login' %}">Log In / Sign Up</a>
             </li>
           {% endif %}
         </ul>
@@ -56,7 +61,7 @@
     </div>
   </nav>
   
-  <div class="container">
+  <div class="container mt-1">
     {% block content %}
     {% endblock %}
   </div>
@@ -66,5 +71,26 @@
       <div>&copy; 2025 Team <a href="https://github.com/orgs/uva-cs3240-s25/teams/a-15">A-15</a> CS3240 S25</div>
     </div>
   </footer>
+  
+  <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="logoutModalLabel">Confirm Logout</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" style="color: black;">
+          Are you sure you want to logout?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form method="POST" action="{% url 'account_logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Logout</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
