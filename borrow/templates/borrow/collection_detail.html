@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+{% load borrow_extras %}
+
+{% block title %}{{ object.title }} | HooBorrow{% endblock %}
+{% block content %}
+<div class="container my-4">
+    <h2>{{ object.title }}</h2>
+    <p>{{ object.description }}</p>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for item in object.items_list.all %}
+            {% if item|can_view:request.user %}
+                <div class="col">
+                    <div class="card h-100">
+                        {% if item.photo %}
+                            <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                        {% else %}
+                            <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text">Quantity: {{ item.quantity }}</p>
+                            <p class="card-text">Location: {{ item.location }}</p>
+                        </div>
+                        <div class="card-footer text-center">
+                            <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% empty %}
+            <p class="lead">No items in this collection.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

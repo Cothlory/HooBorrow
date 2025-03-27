@@ -198,6 +198,15 @@ class Collections(models.Model):
         help_text="For private collections, only these users (plus librarians) can see and borrow items."
     )
 
+    def can_view(self, user):
+        if not self.is_collection_private:
+            return True
+        if not user.is_authenticated:
+            return False
+        if hasattr(user, 'is_librarian') and user.is_librarian:
+            return True
+        return self.allowed_users.filter(pk=user.patron.pk).exists()
+
     def clean(self):
         if self.is_collection_private:
             librarian_creator = Librarian.objects.filter(pk=self.creator.pk).first()
