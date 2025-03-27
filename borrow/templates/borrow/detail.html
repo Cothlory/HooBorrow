@@ -15,6 +15,20 @@
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
     <p><strong>Instructions:</strong> {{ object.instructions }}</p>
     <p><strong>Location:</strong> {{ object.location }}</p>
+    
+    <p>
+      <strong>Collections:</strong>
+      {% with collections=object.collections.all %}
+        {% if collections %}
+          {% for collection in collections %}
+            {{ collection.title }}{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        {% else %}
+          None
+        {% endif %}
+      {% endwith %}
+    </p>
+    <input type="hidden" name="is_private" value="{{ object.is_in_private_collection }}">
 
     {% if request.user.is_authenticated %}
       {% if borrowed %}
