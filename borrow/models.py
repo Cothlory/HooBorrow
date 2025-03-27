@@ -10,6 +10,7 @@ class Item(models.Model):
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
@@ -159,4 +160,8 @@ class Librarian(Patron):
         item.delete()
         print(f"Librarian {self.name} deleted item: {item.name}")
 
+class Category(models.Model):
+    name = models.CharField(max_length=200, unique=True)
 
+    def __str__(self):
+        return self.name
