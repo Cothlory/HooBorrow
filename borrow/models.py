@@ -16,6 +16,31 @@ class Item(models.Model):
         borrowed_items = BorrowedItem.objects.filter(item=self)
         borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
         return borrowers
+    
+    @property
+    def is_in_private_collection(self):
+        return self.collections.filter(is_collection_private=True).exists()
+
+    def can_view(self, user):
+        """
+        Returns True if:
+         - the item is not in any private collection, or
+         - the user is authenticated and either is a librarian
+           or is allowed to see at least one private collection the item is in.
+        """
+        if not self.is_in_private_collection:
+            return True
+
+        if not user.is_authenticated:
+            return False
+
+        if hasattr(user, 'is_librarian') and user.is_librarian:
+            return True
+
+        return self.collections.filter(
+            is_collection_private=True,
+            allowed_users__pk=user.patron.pk
+        ).exists()
 
     def __str__(self):
         return self.name
@@ -164,7 +189,7 @@ class Librarian(Patron):
 class Collections(models.Model):
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
-    items_list = models.ManyToManyField(Item, blank=True)
+    items_list = models.ManyToManyField(Item, blank=True, related_name="collections")
     is_collection_private = models.BooleanField(default=False)
     creator = models.ForeignKey(Patron, on_delete=models.CASCADE, related_name='creator')
     allowed_users = models.ManyToManyField(
