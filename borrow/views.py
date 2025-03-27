@@ -18,8 +18,12 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
-        # Get all items (SimpleItems and ComplexItems) from the database
         return Item.objects.all().order_by("name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['collections_list'] = Collections.objects.all().order_by("title")
+        return context
 
 
 class DetailView(generic.DetailView):
@@ -285,3 +289,7 @@ def delete_collection(request, pk):
         return redirect("borrow:manage_collections")
     
     return render(request, "borrow/confirm_delete_collection.html", {"collection": collection})
+
+class CollectionDetailView(generic.DetailView):
+    model = Collections
+    template_name = "borrow/collection_detail.html"
