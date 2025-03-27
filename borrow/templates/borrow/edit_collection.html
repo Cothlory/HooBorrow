@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Edit Collection: {{ collection.title }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <p>
+      {{ form.title.label_tag }}<br>
+      {{ form.title }}
+    </p>
+    <p>
+      {{ form.description.label_tag }}<br>
+      {{ form.description }}
+    </p>
+    <p>
+      {{ form.items_list.label_tag }}<br>
+      {{ form.items_list }}
+    </p>
+    <p>
+      <strong>Visibility:</strong>
+      {% if collection.is_collection_private %}
+        Private
+      {% else %}
+        Public
+      {% endif %}
+    </p>
+    {% if collection.is_collection_private and form.allowed_users %}
+      <p>
+        {{ form.allowed_users.label_tag }}<br>
+        {{ form.allowed_users }}
+      </p>
+    {% endif %}
+    <button type="submit">Save Changes</button>
+  </form>
+  <a href="{% url 'borrow:manage_collections' %}">Back to Manage Collections</a>
+{% endblock %}

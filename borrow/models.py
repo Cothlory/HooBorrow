@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 
 class Item(models.Model):
@@ -16,6 +17,31 @@ class Item(models.Model):
         borrowed_items = BorrowedItem.objects.filter(item=self)
         borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
         return borrowers
+    
+    @property
+    def is_in_private_collection(self):
+        return self.collections.filter(is_collection_private=True).exists()
+
+    def can_view(self, user):
+        """
+        Returns True if:
+         - the item is not in any private collection, or
+         - the user is authenticated and either is a librarian
+           or is allowed to see at least one private collection the item is in.
+        """
+        if not self.is_in_private_collection:
+            return True
+
+        if not user.is_authenticated:
+            return False
+
+        if hasattr(user, 'is_librarian') and user.is_librarian:
+            return True
+
+        return self.collections.filter(
+            is_collection_private=True,
+            allowed_users__pk=user.patron.pk
+        ).exists()
 
     def __str__(self):
         return self.name
@@ -163,5 +189,46 @@ class Librarian(Patron):
 class Category(models.Model):
     name = models.CharField(max_length=200, unique=True)
 
+
     def __str__(self):
         return self.name
+
+class Collections(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.CharField(max_length=500)
+    items_list = models.ManyToManyField(Item, blank=True, related_name="collections")
+    is_collection_private = models.BooleanField(default=False)
+    creator = models.ForeignKey(Patron, on_delete=models.CASCADE, related_name='creator')
+    allowed_users = models.ManyToManyField(
+        Patron,
+        blank=True,
+        help_text="For private collections, only these users (plus librarians) can see and borrow items."
+    )
+
+    def clean(self):
+        if self.is_collection_private:
+            librarian_creator = Librarian.objects.filter(pk=self.creator.pk).first()
+            if not librarian_creator or not librarian_creator.can_add_items:
+                raise ValidationError("Only librarians can create private collections.")
+            
+        if self.pk:
+            for item in self.items_list.all():
+                other_collections = Collections.objects.filter(items_list=item).exclude(pk=self.pk)
+                if self.is_collection_private:
+                    if other_collections.exists():
+                        raise ValidationError(
+                            f"Item '{item.name}' is already in another collection and cannot be added to a private collection."
+                        )
+                else:
+                    if other_collections.filter(is_collection_private=True).exists():
+                        raise ValidationError(
+                            f"Item '{item.name}' is in a private collection and cannot be added to a public collection."
+                        )
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title

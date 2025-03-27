@@ -1,5 +1,5 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest
+from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
@@ -7,8 +7,8 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron
-from .forms import SimpleItemForm, ComplexItemForm, QuantityForm
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections
+from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -147,3 +147,141 @@ def add_complex_item(request):
             return HttpResponseForbidden("You do not have permission to add items.")
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+
+def manage_users(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
+        
+        if librarian.can_add_items:
+            patrons = Patron.objects.all()
+            librarians = Librarian.objects.all()
+            
+            # Combine the users into a single list with role information
+            users = []
+            for patron in patrons:
+                role = 'Librarian' if Librarian.objects.filter(user=patron.user).exists() else 'Patron'
+
+                users.append({
+                    'user': patron.user,
+                    'name': patron.name,
+                    'email': patron.email,
+                    'role': role
+                })
+            print(users)
+            
+            if request.method == 'POST':
+                user_id = request.POST.get('promote_user_id')
+                
+                try:
+                    patron = Patron.objects.get(user__id=user_id)
+                    user = patron.user
+                    name = patron.name
+                    email = patron.email
+                    
+                    # Check if the user is already a librarian
+                    if isinstance(patron, Librarian):
+                        messages.error(request, f"{name} is already a librarian.")
+                    else:
+                        patron.delete() 
+                        # Promote patron to librarian
+                        librarian = Librarian.objects.create(user=user, name=name, email=email)
+                        librarian.save()
+
+                        messages.success(request, f"{patron.name} has been promoted to Librarian.")
+                        return redirect('borrow:manage_users')  # Redirect after successful promotion
+
+                except Patron.DoesNotExist:
+                    messages.error(request, "Patron not found.")
+
+            # If GET request, render the list of users
+            return render(request, 'borrow/manage_users.html', {'users': users})
+
+        else: 
+            return HttpResponseForbidden("You do not have permission to add items.")
+    
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+@login_required
+def manage_collections(request):
+    try:
+        creator = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+        is_librarian = False
+
+    if request.method == "POST":
+        form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
+        if form.is_valid():
+            collection = form.save(commit=False)
+            if not is_librarian:
+                collection.is_collection_private = False
+            collection.save()
+            form.save_m2m()
+            messages.success(request, f"Collection '{collection.title}' created.")
+            return redirect('borrow:manage_collections')
+    else:
+        form = CollectionForm(librarian=creator, is_librarian=is_librarian)
+    
+    collections = Collections.objects.filter(creator=creator)
+    return render(request, 'borrow/manage_collections.html', {
+        'form': form,
+        'collections': collections,
+        'is_librarian': is_librarian,
+    })
+
+@login_required
+def edit_collection(request, pk):
+    try:
+        creator = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+        is_librarian = False
+
+    collection = get_object_or_404(Collections, pk=pk, creator=creator)
+    
+    if request.method == "POST":
+        form = CollectionForm(
+            request.POST, 
+            instance=collection, 
+            librarian=creator, 
+            is_librarian=is_librarian, 
+            editing=True
+        )
+        if form.is_valid():
+            instance = form.save(commit=False)
+            instance.save()
+            form.save_m2m()
+            messages.success(request, f"Collection '{instance.title}' updated successfully.")
+            return redirect("borrow:manage_collections")
+        else:
+            messages.error(request, f"Error saving collection: {form.errors}")
+    else:
+        form = CollectionForm(
+            instance=collection, 
+            librarian=creator, 
+            is_librarian=is_librarian, 
+            editing=True
+        )
+    
+    return render(request, "borrow/edit_collection.html", {"form": form, "collection": collection})
+
+
+@login_required
+def delete_collection(request, pk):
+    try:
+        creator = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+    
+    collection = get_object_or_404(Collections, pk=pk, creator=creator)
+    
+    if request.method == "POST":
+        collection.delete()
+        messages.success(request, f"Collection '{collection.title}' deleted successfully.")
+        return redirect("borrow:manage_collections")
+    
+    return render(request, "borrow/confirm_delete_collection.html", {"collection": collection})
