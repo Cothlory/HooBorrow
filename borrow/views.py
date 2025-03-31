@@ -229,7 +229,11 @@ def manage_collections(request):
     else:
         form = CollectionForm(librarian=creator, is_librarian=is_librarian)
     
-    collections = Collections.objects.filter(creator=creator)
+    if is_librarian:
+        collections = Collections.objects.all().order_by("title")
+    else:
+        collections = Collections.objects.filter(creator=creator).order_by("title")
+    
     return render(request, 'borrow/manage_collections.html', {
         'form': form,
         'collections': collections,
@@ -239,37 +243,25 @@ def manage_collections(request):
 @login_required
 def edit_collection(request, pk):
     try:
-        creator = Librarian.objects.get(user=request.user)
+        librarian = Librarian.objects.get(user=request.user)
         is_librarian = True
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
-    collection = get_object_or_404(Collections, pk=pk, creator=creator)
+    
+    if is_librarian:
+        collection = get_object_or_404(Collections, pk=pk)
+    else:
+        collection = get_object_or_404(Collections, pk=pk, creator=creator)
     
     if request.method == "POST":
-        form = CollectionForm(
-            request.POST, 
-            instance=collection, 
-            librarian=creator, 
-            is_librarian=is_librarian, 
-            editing=True
-        )
+        form = CollectionForm(request.POST, instance=collection, librarian=librarian if is_librarian else creator, is_librarian=is_librarian, editing=True)
         if form.is_valid():
-            instance = form.save(commit=False)
-            instance.save()
-            form.save_m2m()
-            messages.success(request, f"Collection '{instance.title}' updated successfully.")
+            form.save()
+            messages.success(request, f"Collection '{collection.title}' updated successfully.")
             return redirect("borrow:manage_collections")
-        else:
-            messages.error(request, f"Error saving collection: {form.errors}")
     else:
-        form = CollectionForm(
-            instance=collection, 
-            librarian=creator, 
-            is_librarian=is_librarian, 
-            editing=True
-        )
+        form = CollectionForm(instance=collection, librarian=librarian if is_librarian else creator, is_librarian=is_librarian, editing=True)
     
     return render(request, "borrow/edit_collection.html", {"form": form, "collection": collection})
 
@@ -277,11 +269,16 @@ def edit_collection(request, pk):
 @login_required
 def delete_collection(request, pk):
     try:
-        creator = Librarian.objects.get(user=request.user)
+        librarian = Librarian.objects.get(user=request.user)
+        is_librarian = True
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
+        is_librarian = False
     
-    collection = get_object_or_404(Collections, pk=pk, creator=creator)
+    if is_librarian:
+        collection = get_object_or_404(Collections, pk=pk)
+    else:
+        collection = get_object_or_404(Collections, pk=pk, creator=creator)
     
     if request.method == "POST":
         collection.delete()
