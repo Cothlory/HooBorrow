@@ -1,15 +1,6 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-            <div class="alert alert-warning">
-                {{ message }}
-            </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
   <h1>Borrow {{ item.name }}</h1>
 

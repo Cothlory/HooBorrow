@@ -91,19 +91,23 @@ def approve_requests(request):
             return redirect('borrow:approve_requests')
 
         if action == 'approve':
-            # Approve the request and create a BorrowedItem
-            try:
-                # Check if the item is Simple or Complex
+            try: 
                 item = borrow_request.item
+                success = False
 
-                # Create a BorrowedItem based on the type of item
-                if isinstance(item, SimpleItem):
-                    # Assuming you have a method in Patron to handle borrowing SimpleItems
-                    success = borrow_request.borrower.borrow_simple_item(item, borrow_request.quantity)
-                elif isinstance(item, ComplexItem):
-                    # Assuming you have a method in Patron to handle borrowing ComplexItems
-                    success = borrow_request.borrower.borrow_complex_item(item)
-
+                try:
+                    # Try to get the item as a SimpleItem
+                    simple_item = SimpleItem.objects.get(id=item.id)
+                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity)
+                except SimpleItem.DoesNotExist:
+                    # If it's not a SimpleItem, try ComplexItem
+                    try:
+                        complex_item = ComplexItem.objects.get(id=item.id)
+                        success = borrow_request.borrower.borrow_complex_item(complex_item)
+                    except ComplexItem.DoesNotExist:
+                        messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.")
+                        return redirect('borrow:approve_requests')
+                
                 if success:
                     # Mark the BorrowRequest as approved
                     borrow_request.status = BorrowRequest.APPROVED
@@ -112,13 +116,11 @@ def approve_requests(request):
                     messages.success(request, f"Request for {borrow_request.quantity} of {item.name} has been approved.")
                 else:
                     messages.error(request, f"Item borrowing failed for {borrow_request.item.name}. Please try again.")
-
             except Exception as e:
                 messages.error(request, f"Error occurred while approving the request: {str(e)}")
                 return redirect('borrow:approve_requests')
 
         elif action == 'reject':
-            # Reject the request
             borrow_request.status = BorrowRequest.REJECTED
             borrow_request.save()
             messages.error(request, f"Request for {borrow_request.item.name} has been rejected.")
