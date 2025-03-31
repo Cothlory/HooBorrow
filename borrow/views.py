@@ -22,7 +22,10 @@ class IndexView(generic.ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['collections_list'] = Collections.objects.all().order_by("title")
+        if self.request.user.is_authenticated:
+            context['collections_list'] = Collections.objects.all().order_by("title")
+        else:
+            context['collections_list'] = Collections.objects.filter(is_collection_private=False).order_by("title")
         return context
 
 
@@ -30,15 +33,16 @@ class DetailView(generic.DetailView):
     model = Item
     template_name = "borrow/detail.html"
     
+    def dispatch(self, request, *args, **kwargs):
+        item = self.get_object()
+        if not item.can_view(request.user):
+            return HttpResponseForbidden("You do not have permission to view this item.")
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
         item = self.get_object()
-        
-        # Get the BorrowedItem instances related to this item (whether it's simple or complex)
         borrowed_items = BorrowedItem.objects.filter(item=item)
-        
-        # Create a list of dictionaries with borrower names and the quantities they borrowed
         borrowers_info = []
         for borrowed_item in borrowed_items:
             borrowers_info.append({
@@ -47,8 +51,6 @@ class DetailView(generic.DetailView):
                 "due_date": borrowed_item.due_date,
                 "is_late": borrowed_item.is_late()
             })
-        
-        # Add the additional data to the context
         context['borrowers_info'] = borrowers_info
         return context
 
@@ -290,3 +292,26 @@ def delete_collection(request, pk):
 class CollectionDetailView(generic.DetailView):
     model = Collections
     template_name = "borrow/collection_detail.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        collection = self.get_object()
+        if collection.is_collection_private and not request.user.is_authenticated:
+            return HttpResponseForbidden("You do not have permission to view this collection.")
+        return super().dispatch(request, *args, **kwargs)
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        collection = self.get_object()
+        user = self.request.user
+        if not collection.is_collection_private:
+            visible_items = collection.items_list.all()
+        else:
+            from .models import Librarian
+            if user.is_authenticated and Librarian.objects.filter(user=user).exists():
+                visible_items = collection.items_list.all()
+            elif user.is_authenticated and collection.allowed_users.filter(pk=user.patron.pk).exists():
+                visible_items = collection.items_list.all()
+            else:
+                visible_items = []
+        context['visible_items'] = visible_items
+        return context
