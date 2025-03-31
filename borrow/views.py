@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest
 from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm
 
 def index(request):
@@ -58,48 +58,74 @@ def borrow_item(request, pk):
     except Patron.DoesNotExist:
         return redirect('account:profile')  # Redirect if not a Patron
     
-    try:
-        simpleitem = SimpleItem.objects.get(pk=pk)
-        complexitem = None
-    except SimpleItem.DoesNotExist:
-        simpleitem = None
-        try:
-            complexitem = ComplexItem.objects.get(pk=pk)
-        except ComplexItem.DoesNotExist:
-            return HttpResponseNotFound("Item not found")
-    
+    # get item from the list
+    item = Item.objects.get(pk=pk)
+    print(item)
+
     # Create a form instance with POST data if the form is submitted
     form = QuantityForm(request.POST or None)
     
     if request.method == "POST" and form.is_valid():
         quantity = form.cleaned_data['quantity']
-        
-        success = False
-        
-        if simpleitem:
-            success = patron.borrow_simple_item(simpleitem, quantity)
-        elif complexitem:
-            success = patron.borrow_complex_item(complexitem)
-        
-        if success:
-            return redirect('borrow:detail', pk=pk)
-        else:
-            messages.error(request, "Item borrowing failed. Please try again.")
-            return redirect('borrow:borrow_item', pk=pk)
-    
-    context = {
-        'item': simpleitem if simpleitem else complexitem,
-        'item_type': 'simple' if simpleitem else 'complex', 
-        'form': form,
-    }
-    return render(request, 'borrow/borrow.html', context)
+        borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
+        print(request)
+        borrow_request.save()
+        messages.success(request, 'Your borrow request has been sent to the librarian.')
+        return redirect('borrow:detail', pk=pk)
+
+    return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
 
 
 def approve_requests(request):
-    
+    # Fetch all the borrow requests that are PENDING
+    borrow_requests = BorrowRequest.objects.filter(status=BorrowRequest.PENDING)
 
-    return render(request, 'borrow/approve.html')
+    if request.method == "POST":
+        request_id = request.POST.get('request_id')
+        action = request.POST.get('action')  # 'approve' or 'reject'
 
+        try:
+            borrow_request = BorrowRequest.objects.get(id=request_id)
+        except BorrowRequest.DoesNotExist:
+            messages.error(request, "Borrow request not found.")
+            return redirect('borrow:approve_requests')
+
+        if action == 'approve':
+            # Approve the request and create a BorrowedItem
+            try:
+                # Check if the item is Simple or Complex
+                item = borrow_request.item
+
+                # Create a BorrowedItem based on the type of item
+                if isinstance(item, SimpleItem):
+                    # Assuming you have a method in Patron to handle borrowing SimpleItems
+                    success = borrow_request.borrower.borrow_simple_item(item, borrow_request.quantity)
+                elif isinstance(item, ComplexItem):
+                    # Assuming you have a method in Patron to handle borrowing ComplexItems
+                    success = borrow_request.borrower.borrow_complex_item(item)
+
+                if success:
+                    # Mark the BorrowRequest as approved
+                    borrow_request.status = BorrowRequest.APPROVED
+                    borrow_request.save()
+
+                    messages.success(request, f"Request for {borrow_request.quantity} of {item.name} has been approved.")
+                else:
+                    messages.error(request, f"Item borrowing failed for {borrow_request.item.name}. Please try again.")
+
+            except Exception as e:
+                messages.error(request, f"Error occurred while approving the request: {str(e)}")
+                return redirect('borrow:approve_requests')
+
+        elif action == 'reject':
+            # Reject the request
+            borrow_request.status = BorrowRequest.REJECTED
+            borrow_request.save()
+            messages.error(request, f"Request for {borrow_request.item.name} has been rejected.")
+
+        return redirect('borrow:approve_requests')  # Redirect to the same page to refresh the list
+
+    return render(request, 'borrow/approve.html', {'borrow_requests': borrow_requests})
 
 @login_required
 def add_item(request):
