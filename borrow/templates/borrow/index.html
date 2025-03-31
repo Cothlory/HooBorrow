@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% load static %}
 {% load borrow_extras %}
 
@@ -40,19 +39,22 @@
     {% if collections_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for collection in collections_list %}
-                {% if collection|can_view_collection:request.user %}
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">{{ collection.title }}</h5>
-                                <p class="card-text">{{ collection.description }}</p>
-                            </div>
-                            <div class="card-footer text-center">
-                                <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
-                            </div>
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ collection.title }}</h5>
+                            <p class="card-text">{{ collection.description }}</p>
+                            {% if collection.is_collection_private %}
+                                <span class="badge bg-warning text-dark">Private</span>
+                            {% else %}
+                                <span class="badge bg-success">Public</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-center">
+                            <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
                         </div>
                     </div>
-                {% endif %}
+                </div>
             {% endfor %}
         </div>
     {% else %}
