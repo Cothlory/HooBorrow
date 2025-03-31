@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% load static %}
 {% load borrow_extras %}
 
@@ -11,23 +10,7 @@
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in borrow_items_list %}
                 {% if item|can_view:request.user and item.collections.all|length == 0 %}
-                    <div class="col">
-                        <div class="card h-100">
-                            {% if item.photo %}
-                                <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                            {% else %}
-                                <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                            {% endif %}
-                            <div class="card-body">
-                                <h5 class="card-title">{{ item.name }}</h5>
-                                <p class="card-text">Quantity: {{ item.quantity }}</p>
-                                <p class="card-text">Location: {{ item.location }}</p>
-                            </div>
-                            <div class="card-footer text-center">
-                                <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Item card code -->
                 {% endif %}
             {% endfor %}
         </div>
@@ -40,19 +23,22 @@
     {% if collections_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for collection in collections_list %}
-                {% if collection|can_view_collection:request.user %}
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">{{ collection.title }}</h5>
-                                <p class="card-text">{{ collection.description }}</p>
-                            </div>
-                            <div class="card-footer text-center">
-                                <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
-                            </div>
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ collection.title }}</h5>
+                            <p class="card-text">{{ collection.description }}</p>
+                            {% if collection.is_collection_private %}
+                                <span class="badge bg-warning text-dark">Private</span>
+                            {% else %}
+                                <span class="badge bg-success">Public</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-center">
+                            <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
                         </div>
                     </div>
-                {% endif %}
+                </div>
             {% endfor %}
         </div>
     {% else %}
