@@ -22,25 +22,20 @@ class Item(models.Model):
         return self.collections.filter(is_collection_private=True).exists()
 
     def can_view(self, user):
-        """
-        Returns True if:
-         - the item is not in any private collection, or
-         - the user is authenticated and either is a librarian
-           or is allowed to see at least one private collection the item is in.
-        """
         if not self.is_in_private_collection:
             return True
 
         if not user.is_authenticated:
             return False
 
-        if hasattr(user, 'is_librarian') and user.is_librarian:
+        from .models import Librarian
+        if Librarian.objects.filter(user=user).exists():
             return True
 
-        return self.collections.filter(
-            is_collection_private=True,
-            allowed_users__pk=user.patron.pk
-        ).exists()
+        for col in self.collections.filter(is_collection_private=True):
+            if col.can_view(user):
+                return True
+        return False
 
     def __str__(self):
         return self.name
@@ -195,7 +190,7 @@ class Collections(models.Model):
     allowed_users = models.ManyToManyField(
         Patron,
         blank=True,
-        help_text="For private collections, only these users (plus librarians) can see and borrow items."
+        help_text="For private collections, only these patrons (librarians are automatically granted permission) can see and borrow items."
     )
 
     def can_view(self, user):
@@ -203,7 +198,8 @@ class Collections(models.Model):
             return True
         if not user.is_authenticated:
             return False
-        if hasattr(user, 'is_librarian') and user.is_librarian:
+        from .models import Librarian
+        if Librarian.objects.filter(user=user).exists():
             return True
         return self.allowed_users.filter(pk=user.patron.pk).exists()
 
