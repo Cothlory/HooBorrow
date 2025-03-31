@@ -28,10 +28,10 @@
               <li class="nav-item"><a class="nav-link" href="{% url 'borrow:add_item' %}">Add Item</a></li>
               <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_users' %}">Manage Users</a></li>
               <li class="nav-item"><a class="nav-link" href="{% url 'borrow:approve_requests' %}">Approve Requests</a></li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'borrow:manage_collections' %}">Manage Collections</a>
+              </li>
             {% endif %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'borrow:manage_collections' %}">Manage Collections</a>
-            </li>
           {% endif %}
           
           <li class="nav-item"><a class="nav-link" href="{% url 'polls:index' %}">Polls</a></li>
