@@ -171,6 +171,13 @@ class BorrowedItem(models.Model):
         self.save()
 
 
+class BorrowRequest(models.Model):
+    borrower = models.ForeignKey(Patron, on_delete=models.CASCADE)
+    item = models.ForeignKey('Item', on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    date = models.DateTimeField()
+
+
 class Librarian(Patron):
     can_add_items = models.BooleanField(default=True)
 

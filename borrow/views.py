@@ -80,14 +80,12 @@ def borrow_item(request, pk):
             success = patron.borrow_simple_item(simpleitem, quantity)
         elif complexitem:
             success = patron.borrow_complex_item(complexitem)
-
         
         if success:
             return redirect('borrow:detail', pk=pk)
         else:
             messages.error(request, "Item borrowing failed. Please try again.")
-            return redirect('borrow:borrow_item', pk=pk) # give feedback to user 
-
+            return redirect('borrow:borrow_item', pk=pk)
     
     context = {
         'item': simpleitem if simpleitem else complexitem,
@@ -96,116 +94,109 @@ def borrow_item(request, pk):
     }
     return render(request, 'borrow/borrow.html', context)
 
+
+def approve_requests(request):
+    
+
+    return render(request, 'borrow/approve.html')
+
+
 @login_required
 def add_item(request):
-    # Check if the user has a related Librarian instance and if they have permission to add items
     try:
-        librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
-        if librarian.can_add_items:  # Check if they have permission
-            if request.method == 'POST':
-                # Determine the selected item type from the form
-                item_type = request.POST.get('item_type')
-                if item_type == 'simple':
-                    return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
-                elif item_type == 'complex':
-                    return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
-            return render(request, 'borrow/choose_item_type.html')  # Show the item type selection page
-        else:
-            return HttpResponseForbidden("You do not have permission to add items.")  # User doesn't have permission
+        librarian = Librarian.objects.get(user=request.user) 
     except Librarian.DoesNotExist:
-        return HttpResponseForbidden("You are not a librarian and cannot add items.")  # If the user is not a librarian
+        return HttpResponseForbidden("You are not a librarian and cannot add items.") 
+
+    if request.method == 'POST':
+        # Determine the selected item type from the form
+        item_type = request.POST.get('item_type')
+        if item_type == 'simple':
+            return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
+        elif item_type == 'complex':
+            return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
+    return render(request, 'borrow/choose_item_type.html')  # Show the item type selection page
 
 
 def add_simple_item(request):
     try:
         librarian = Librarian.objects.get(user=request.user) 
-        if librarian.can_add_items:
-            if request.method == 'POST':
-                form = SimpleItemForm(request.POST, request.FILES)
-                if form.is_valid():
-                    form.save()
-                    return redirect('home')  # Redirect to item list or another view
-            else:
-                form = SimpleItemForm()
-            
-            return render(request, 'borrow/add_simple_item.html', {'form': form, 'item_type': 'Simple Item'})
-        else:
-            return HttpResponseForbidden("You do not have permission to add items.")
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+    if request.method == 'POST':
+        form = SimpleItemForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('home')  # Redirect to item list or another view
+    else:
+        form = SimpleItemForm()
+    
+    return render(request, 'borrow/add_simple_item.html', {'form': form, 'item_type': 'Simple Item'})
+
 
 def add_complex_item(request):
     try:
-        librarian = Librarian.objects.get(user=request.user) 
-        if librarian.can_add_items:
-            if request.method == 'POST':
-                form = ComplexItemForm(request.POST, request.FILES)
-                if form.is_valid():
-                    form.save()
-                    return redirect('home')  # Redirect to item list or another view
-            else:
-                form = ComplexItemForm()
-
-            return render(request, 'borrow/add_complex_item.html', {'form': form, 'item_type': 'Complex Item'})
-        else:
-            return HttpResponseForbidden("You do not have permission to add items.")
+        librarian = Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+    if request.method == 'POST':
+        form = ComplexItemForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('home')  # Redirect to item list or another view
+    else:
+        form = ComplexItemForm()
+
+    return render(request, 'borrow/add_complex_item.html', {'form': form, 'item_type': 'Complex Item'})
 
 
 def manage_users(request):
     try:
         librarian = Librarian.objects.get(user=request.user)  # Try to get the librarian instance
-        
-        if librarian.can_add_items:
-            patrons = Patron.objects.all()
-            librarians = Librarian.objects.all()
-            
-            # Combine the users into a single list with role information
-            users = []
-            for patron in patrons:
-                role = 'Librarian' if Librarian.objects.filter(user=patron.user).exists() else 'Patron'
-
-                users.append({
-                    'user': patron.user,
-                    'name': patron.name,
-                    'email': patron.email,
-                    'role': role
-                })
-            print(users)
-            
-            if request.method == 'POST':
-                user_id = request.POST.get('promote_user_id')
-                
-                try:
-                    patron = Patron.objects.get(user__id=user_id)
-                    user = patron.user
-                    name = patron.name
-                    email = patron.email
-                    
-                    # Check if the user is already a librarian
-                    if isinstance(patron, Librarian):
-                        messages.error(request, f"{name} is already a librarian.")
-                    else:
-                        patron.delete() 
-                        # Promote patron to librarian
-                        librarian = Librarian.objects.create(user=user, name=name, email=email)
-                        librarian.save()
-
-                        messages.success(request, f"{patron.name} has been promoted to Librarian.")
-                        return redirect('borrow:manage_users')  # Redirect after successful promotion
-
-                except Patron.DoesNotExist:
-                    messages.error(request, "Patron not found.")
-
-            # If GET request, render the list of users
-            return render(request, 'borrow/manage_users.html', {'users': users})
-
-        else: 
-            return HttpResponseForbidden("You do not have permission to add items.")
-    
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+        
+    patrons = Patron.objects.all()
+    librarians = Librarian.objects.all()
+    users = [] # Combine the users into a single list with role information
+    for patron in patrons:
+        role = 'Librarian' if Librarian.objects.filter(user=patron.user).exists() else 'Patron'
+        users.append({
+            'user': patron.user,
+            'name': patron.name,
+            'email': patron.email,
+            'role': role
+        })
+    
+    if request.method == 'POST':
+        user_id = request.POST.get('promote_user_id')
+        
+        try:
+            patron = Patron.objects.get(user__id=user_id)
+        except Patron.DoesNotExist:
+            messages.error(request, "Patron not found.")
+
+        user = patron.user
+        name = patron.name
+        email = patron.email
+        
+        # Check if the user is already a librarian
+        if isinstance(patron, Librarian):
+            messages.error(request, f"{name} is already a librarian.")
+        else:
+            patron.delete() 
+            # Promote patron to librarian
+            librarian = Librarian.objects.create(user=user, name=name, email=email)
+            librarian.save()
+
+            messages.success(request, f"{patron.name} has been promoted to Librarian.")
+            return redirect('borrow:manage_users')  # Redirect after successful promotion
+
+    # If GET request, render the list of users
+    return render(request, 'borrow/manage_users.html', {'users': users})
+
 
 @login_required
 def manage_collections(request):
