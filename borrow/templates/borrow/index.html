@@ -6,7 +6,20 @@
 {% block title %}Borrow | HooBorrow{% endblock %}
 {% block content %}
 <div class="my-4">
-    <h2> Browse Items</h2>
+    <h2>Browse Items</h2>
+    
+    <!-- Category Filter Section -->
+    <div class="mb-4">
+        <h3>Filter by Category</h3>
+        <ul class="list-inline">
+            {% for cat in categories %}
+                <li class="list-inline-item">
+                    <a href="?category={{ cat.id }}">{{ cat.name }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
     {% if borrow_items_list %}
         <ul class="list-group">
         {% for item in borrow_items_list %}

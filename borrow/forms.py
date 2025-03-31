@@ -63,3 +63,6 @@ class CollectionForm(forms.ModelForm):
                             f"Item '{item.name}' is in a private collection and cannot be added to a public collection."
                         )
         return cleaned_data
+
+class QuantityForm(forms.Form):
+    quantity = forms.IntegerField(min_value=1, label="Quantity", required=True)

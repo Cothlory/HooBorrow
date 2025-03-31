@@ -18,8 +18,19 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
-        # Get all items (SimpleItems and ComplexItems) from the database
-        return Item.objects.all().order_by("name")
+       	# Get all items and order by name
+       	queryset = Item.objects.all().order_by("name")
+       	# Check if a category filter was provided in the URL, e.g., ?category=3
+       	category_id = self.request.GET.get('category')
+       	if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        return queryset    
+    def get_context_data(self, **kwargs):
+       	# Add all categories to the context for use in the template filter
+       	context = super().get_context_data(**kwargs)
+       	from .models import Category  # Import Category (if not already imported at top)
+       	context['categories'] = Category.objects.all()
+       	return context
 
 
 class DetailView(generic.DetailView):

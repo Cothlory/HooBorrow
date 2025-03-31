@@ -4,6 +4,13 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
+from django.db import models
+
+class Category(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+
+    def __str__(self):
+        return self.name
 
 class Item(models.Model):
     name = models.CharField(max_length=200)
@@ -185,9 +192,6 @@ class Librarian(Patron):
     def delete_item(self, item: Item):
         item.delete()
         print(f"Librarian {self.name} deleted item: {item.name}")
-
-class Category(models.Model):
-    name = models.CharField(max_length=200, unique=True)
 
 
     def __str__(self):
