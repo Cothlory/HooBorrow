@@ -79,6 +79,11 @@ def borrow_item(request, pk):
 
 
 def approve_requests(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot approve requests.")
+
     # Fetch all the borrow requests that are PENDING
     borrow_requests = BorrowRequest.objects.filter(status=BorrowRequest.PENDING)
 
