@@ -166,6 +166,40 @@ class BorrowedItem(models.Model):
         self.save()
 
 
+class BorrowRequest(models.Model):
+    PENDING = 'PENDING'
+    APPROVED = 'APPROVED'
+    REJECTED = 'REJECTED'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+    ]
+
+    borrower = models.ForeignKey(Patron, on_delete=models.CASCADE)
+    item = models.ForeignKey('Item', on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    date = models.DateTimeField()
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=PENDING
+    )
+
+    def __str__(self):
+        return f"Request by {self.borrower.name} for {self.quantity} of {self.item.name} - {self.status}"
+
+    def approve(self):
+        self.status = self.APPROVED
+        self.save()
+
+    def reject(self):
+        self.status = self.REJECTED
+        self.save()
+
+
+
 class Librarian(Patron):
     can_add_items = models.BooleanField(default=True)
 
