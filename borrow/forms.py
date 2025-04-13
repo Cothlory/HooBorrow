@@ -1,5 +1,5 @@
 from django import forms
-from .models import SimpleItem, ComplexItem, Collections
+from .models import SimpleItem, ComplexItem, Collections, Patron
 
 class SimpleItemForm(forms.ModelForm):
     class Meta:
@@ -30,11 +30,14 @@ class CollectionForm(forms.ModelForm):
         if editing:
             if 'is_collection_private' in self.fields:
                 self.fields.pop('is_collection_private')
-            if not self.instance.is_collection_private and 'allowed_users' in self.fields:
-                self.fields.pop('allowed_users')
-        else:
-            if is_librarian:
-                self.fields.pop('allowed_users')
+            if self.instance.is_collection_private:
+                self.fields['allowed_users'].queryset = Patron.objects.all()
             else:
-                self.fields['is_collection_private'].widget = forms.HiddenInput()
-                self.fields['is_collection_private'].initial = False
+                if 'allowed_users' in self.fields:
+                    self.fields.pop('allowed_users')
+        else:
+            if not is_librarian:
+                if 'allowed_users' in self.fields:
+                    self.fields.pop('allowed_users')
+            else:
+                self.fields['allowed_users'].queryset = Patron.objects.all()
