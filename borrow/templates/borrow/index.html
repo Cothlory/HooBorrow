@@ -5,11 +5,11 @@
 {% block title %}Borrow | HooBorrow{% endblock %}
 {% block content %}
 <div class="my-4">
-    <h2>Browse Items</h2>
+    <h2>Items</h2>
     {% if borrow_items_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in borrow_items_list %}
-                {% if item|can_view:request.user and item.collections.all|length == 0 %}
+                {% if item|can_view:request.user %}
                     <div class="col">
                         <div class="card h-100">
                             {% if item.photo %}
@@ -35,7 +35,7 @@
     {% endif %}
 
     <hr>
-    <h2>Browse Collections</h2>
+    <h2>Collections</h2>
     {% if collections_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for collection in collections_list %}
