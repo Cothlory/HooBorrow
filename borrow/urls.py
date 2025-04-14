@@ -16,4 +16,5 @@ urlpatterns = [
     path('manage_collections/', views.manage_collections, name='manage_collections'),
     path('manage_collections/edit/<int:pk>/', views.edit_collection, name='edit_collection'),
     path('manage_collections/delete/<int:pk>/', views.delete_collection, name='delete_collection'),
+    path("<int:pk>/review/", views.add_review, name="add_review"),
 ]
