@@ -21,6 +21,20 @@
                                 <h5 class="card-title">{{ item.name }}</h5>
                                 <p class="card-text">Quantity: {{ item.quantity }}</p>
                                 <p class="card-text">Location: {{ item.location }}</p>
+                                <p class="card-text">
+                                    <strong>Collections:</strong>
+                                    {% with item_collections=item.collections.all %}
+                                        {% if item_collections %}
+                                            {% for collection in item_collections %}
+                                                {% if collection|can_view_collection:request.user %}
+                                                    <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Not in collection</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </p>
                             </div>
                             <div class="card-footer text-center">
                                 <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
