@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>My Borrowed Items</h2>
+    
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if borrowed_items %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in borrowed_items %}
+                <tr class="{% if item.is_late %}table-danger{% endif %}">
+                    <td>{{ item.item.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.due_date|date:"F j, Y, g:i a" }}</td>
+                    <td>
+                        {% if item.is_late %}
+                            <span class="text-danger">OVERDUE</span>
+                        {% else %}
+                            <span class="text-success">On Time</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'borrow:return_item' item.id %}" class="btn btn-primary btn-sm">Return</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>You have no items currently borrowed.</p>
+    {% endif %}
+</div>
+{% endblock %}
