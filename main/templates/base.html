@@ -29,14 +29,14 @@
               <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_users' %}">Manage Users</a></li>
               <li class="nav-item"><a class="nav-link" href="{% url 'borrow:approve_requests' %}">Approve Requests</a></li>
               <li class="nav-item">
-                <a class="nav-link" href="{% url 'borrow:all_borrowed_items' %}">All Borrowed Items</a>
+                <a class="nav-link" href="{% url 'borrow:all_borrowed_items' %}">All Borrowed</a>
               </li>
             {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'borrow:manage_collections' %}">Manage Collections</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'borrow:my_borrowed_items' %}">My Borrowed Items</a>
+              <a class="nav-link" href="{% url 'borrow:my_borrowed_items' %}">My Borrowed</a>
             </li>
           {% endif %}
 
