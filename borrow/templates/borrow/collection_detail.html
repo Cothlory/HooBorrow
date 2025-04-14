@@ -7,6 +7,12 @@
 <div class="container my-4">
     <h2>{{ object.title }}</h2>
     <p>{{ object.description }}</p>
+    <p>
+        Created by: {{ object.creator.name }} 
+        {% if object.created_at %}
+            on {{ object.created_at|date:"F d, Y" }} at {{ object.created_at|time:"H:i" }}
+        {% endif %}</small>
+    </p>
     
     {% if object.is_collection_private and visible_items|length == 0 %}
       <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
