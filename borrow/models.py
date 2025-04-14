@@ -226,6 +226,7 @@ class Collections(models.Model):
         blank=True,
         help_text="For private collections, only these patrons (librarians are automatically granted permission) can see and borrow items."
     )
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def can_view(self, user):
         if not self.is_collection_private:
