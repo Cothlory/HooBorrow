@@ -1,5 +1,5 @@
 from django import forms
-from .models import SimpleItem, ComplexItem, Collections, Patron
+from .models import SimpleItem, ComplexItem, Collections, Patron, Review
 
 class SimpleItemForm(forms.ModelForm):
     class Meta:
@@ -41,3 +41,12 @@ class CollectionForm(forms.ModelForm):
                     self.fields.pop('allowed_users')
             else:
                 self.fields['allowed_users'].queryset = Patron.objects.all()
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['rating', 'comment']
+        widgets = {
+            'rating': forms.Select(attrs={'class': 'form-select'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }

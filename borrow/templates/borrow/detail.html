@@ -72,4 +72,47 @@
       <p>No borrowers yet.</p>
     {% endif %}
   </div>
+
+  <div class="my-4">
+    <h3>Reviews</h3>
+
+    {% if can_review %}
+      <div class="mb-3">
+        {% if has_reviewed %}
+          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-outline-primary">Edit Your Review</a>
+        {% else %}
+          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-primary">Add a Review</a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if reviews %}
+      <div class="row">
+        {% for review in reviews %}
+          <div class="col-md-6 mb-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between">
+                  <h5 class="card-title">{{ review.reviewer.name }}</h5>
+                  <div>
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= review.rating %}
+                        <span class="text-warning">★</span>
+                      {% else %}
+                        <span class="text-secondary">☆</span>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                </div>
+                <h6 class="card-subtitle mb-2 text-muted">{{ review.created_at|date:"F j, Y" }}</h6>
+                <p class="card-text">{{ review.comment }}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No reviews yet.</p>
+    {% endif %}
+  </div>
 {% endblock %}

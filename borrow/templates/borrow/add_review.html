@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Review {{ item.name }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2>{% if existing_review %}Edit Your Review{% else %}Add a Review{% endif %} for {{ item.name }}</h2>
+  
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+          <label for="{{ form.rating.id_for_label }}" class="form-label">Rating</label>
+          {{ form.rating }}
+          {% if form.rating.errors %}
+          <div class="text-danger">
+            {% for error in form.rating.errors %}
+              {{ error }}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          <label for="{{ form.comment.id_for_label }}" class="form-label">Comment</label>
+          {{ form.comment }}
+          {% if form.comment.errors %}
+          <div class="text-danger">
+            {% for error in form.comment.errors %}
+              {{ error }}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+          {% if existing_review %}Update Review{% else %}Submit Review{% endif %}
+        </button>
+        <a href="{% url 'borrow:detail' item.id %}" class="btn btn-secondary">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
