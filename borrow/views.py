@@ -394,3 +394,111 @@ def add_review(request, pk):
         'item': item,
         'existing_review': existing_review
     })
+
+@login_required
+def my_borrowed_items(request):
+    """View to display all items borrowed by the logged-in user"""
+    try:
+        patron = Patron.objects.get(user=request.user)
+        borrowed_items = BorrowedItem.objects.filter(borrower=patron, returned=False)
+        return render(request, 'borrow/my_borrowed_items.html', {'borrowed_items': borrowed_items})
+    except Patron.DoesNotExist:
+        messages.error(request, "You need to be a patron to see borrowed items.")
+        return redirect('home')
+
+@login_required
+def all_borrowed_items(request):
+    """View for librarians to see all currently borrowed items"""
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+        borrowed_items = BorrowedItem.objects.filter(returned=False)
+        return render(request, 'borrow/all_borrowed_items.html', {'borrowed_items': borrowed_items})
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot view all borrowed items.")
+
+@login_required
+def return_item(request, borrowed_item_id):
+    """Process the return of a borrowed item"""
+    borrowed_item = get_object_or_404(BorrowedItem, id=borrowed_item_id, returned=False)
+    
+    # Verify that the user is either the borrower or a librarian
+    is_borrower = False
+    is_librarian = False
+    
+    try:
+        patron = Patron.objects.get(user=request.user)
+        is_borrower = (patron == borrowed_item.borrower)
+    except Patron.DoesNotExist:
+        pass
+    
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        pass
+    
+    if not (is_borrower or is_librarian):
+        return HttpResponseForbidden("You do not have permission to return this item.")
+    
+    if request.method == "POST":
+        quantity_to_return = int(request.POST.get('quantity', 1))
+        
+        # Make sure the quantity to return is valid
+        if quantity_to_return <= 0 or quantity_to_return > borrowed_item.quantity:
+            messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.")
+            return redirect('borrow:my_borrowed_items' if is_borrower else 'borrow:all_borrowed_items')
+        
+        # Process the return based on item type
+        item = borrowed_item.item
+        success = False
+        
+        if borrowed_item.item_type == 'SIMPLE':
+            try:
+                simple_item = SimpleItem.objects.get(id=item.id)
+                if is_borrower:
+                    success = borrowed_item.borrower.return_simple_item(simple_item, quantity_to_return)
+                else:  # librarian
+                    # Update the item quantity
+                    simple_item.quantity += quantity_to_return
+                    simple_item.save()
+                    
+                    # Update the borrowed item
+                    borrowed_item.quantity -= quantity_to_return
+                    if borrowed_item.quantity == 0:
+                        borrowed_item.returned = True
+                    borrowed_item.save()
+                    success = True
+            except SimpleItem.DoesNotExist:
+                messages.error(request, f"Item {item.name} not found as a Simple Item.")
+        else:  # COMPLEX
+            try:
+                complex_item = ComplexItem.objects.get(id=item.id)
+                if is_borrower:
+                    success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
+                else:  # librarian
+                    # Update the item quantity
+                    complex_item.quantity += quantity_to_return
+                    complex_item.save()
+                    
+                    # Update the borrowed item
+                    borrowed_item.quantity -= quantity_to_return
+                    if borrowed_item.quantity == 0:
+                        borrowed_item.returned = True
+                    borrowed_item.save()
+                    success = True
+            except ComplexItem.DoesNotExist:
+                messages.error(request, f"Item {item.name} not found as a Complex Item.")
+        
+        if success:
+            messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.")
+        else:
+            messages.error(request, f"Failed to return {item.name}. Please try again.")
+        
+        # Redirect to appropriate page
+        if is_borrower:
+            return redirect('borrow:my_borrowed_items')
+        else:
+            return redirect('borrow:all_borrowed_items')
+    
+    # Handle GET request - show return confirmation form
+    return render(request, 'borrow/return_item.html', {'borrowed_item': borrowed_item})
