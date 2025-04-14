@@ -265,3 +265,25 @@ class Collections(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Review(models.Model):
+    RATING_CHOICES = (
+        (1, '1 Star'),
+        (2, '2 Stars'),
+        (3, '3 Stars'),
+        (4, '4 Stars'),
+        (5, '5 Stars'),
+    )
+    
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='reviews')
+    reviewer = models.ForeignKey(Patron, on_delete=models.CASCADE)
+    rating = models.IntegerField(choices=RATING_CHOICES)
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('item', 'reviewer')
+        
+    def __str__(self):
+        return f"{self.reviewer.name}'s review of {self.item.name}"

@@ -7,8 +7,8 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest
-from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review
+from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -52,6 +52,22 @@ class DetailView(generic.DetailView):
                 "is_late": borrowed_item.is_late()
             })
         context['borrowers_info'] = borrowers_info
+        reviews = item.reviews.all().order_by('-created_at')
+        context['reviews'] = reviews
+        if self.request.user.is_authenticated:
+            try:
+                patron = Patron.objects.get(user=self.request.user)
+                has_borrowed = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
+                has_reviewed = Review.objects.filter(reviewer=patron, item=item).exists()
+                context['can_review'] = has_borrowed
+                context['has_reviewed'] = has_reviewed
+            except Patron.DoesNotExist:
+                context['can_review'] = False
+                context['has_reviewed'] = False
+        else:
+            context['can_review'] = False
+            context['has_reviewed'] = False
+            
         return context
 
 def borrow_item(request, pk):
@@ -339,3 +355,42 @@ class CollectionDetailView(generic.DetailView):
                 visible_items = []
         context['visible_items'] = visible_items
         return context
+
+@login_required
+def add_review(request, pk):
+    item = get_object_or_404(Item, pk=pk)
+    try:
+        patron = Patron.objects.get(user=request.user)
+    except Patron.DoesNotExist:
+        messages.error(request, "Only patrons can review items.")
+        return redirect('borrow:detail', pk=pk)
+    borrowed_history = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
+    if not borrowed_history:
+        messages.error(request, "You can only review items you've borrowed.")
+        return redirect('borrow:detail', pk=pk)
+    existing_review = Review.objects.filter(reviewer=patron, item=item).first()
+    
+    if request.method == 'POST':
+        if existing_review:
+            form = ReviewForm(request.POST, instance=existing_review)
+        else:
+            form = ReviewForm(request.POST)
+        
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.item = item
+            review.reviewer = patron
+            review.save()
+            messages.success(request, "Your review has been submitted!")
+            return redirect('borrow:detail', pk=pk)
+    else:
+        if existing_review:
+            form = ReviewForm(instance=existing_review)
+        else:
+            form = ReviewForm()
+    
+    return render(request, 'borrow/add_review.html', {
+        'form': form,
+        'item': item,
+        'existing_review': existing_review
+    })
