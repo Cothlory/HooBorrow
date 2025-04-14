@@ -21,9 +21,8 @@ from main import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('polls/', include('polls.urls')),
     path('borrow/', include('borrow.urls')),
+    path("accounts/", include("main.urls")),
     path('accounts/', include('allauth.urls')),
-    path('accounts/profile/', views.profile_view, name='profile'),  # Profile page URL
-    path('', views.home, name='home'),
+    path("" , views.home, name='home'),
 ]

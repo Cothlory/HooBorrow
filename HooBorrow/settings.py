@@ -32,7 +32,6 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     'django_bootstrap5',
     'main.apps.MainConfig',
-    'polls.apps.PollsConfig',
     'borrow.apps.BorrowConfig',
     'django.contrib.admin',
     'django.contrib.auth',
