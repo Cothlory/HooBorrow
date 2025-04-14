@@ -21,27 +21,50 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <!-- Browse Items - Available to all users -->
           <li class="nav-item"><a class="nav-link" href="{% url 'borrow:index' %}">Browse</a></li>
           
           {% if user.is_authenticated %}
+            <!-- Item and Collection Management - For all authenticated users -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="myContentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                My Content
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="myContentDropdown">
+                <li><a class="dropdown-item" href="{% url 'borrow:my_borrowed_items' %}">My Borrowed Items</a></li>
+                <li><a class="dropdown-item" href="{% url 'borrow:manage_collections' %}">Create Collections</a></li>
+              </ul>
+            </li>
+
+            <!-- Librarian Management Group - Only for librarians -->
             {% if user|is_librarian %}
-              <li class="nav-item"><a class="nav-link" href="{% url 'borrow:add_item' %}">Add Item</a></li>
-              <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_users' %}">Manage Users</a></li>
-              <li class="nav-item"><a class="nav-link" href="{% url 'borrow:approve_requests' %}">Approve Requests</a></li>
-              <li class="nav-item">
-                <a class="nav-link" href="{% url 'borrow:all_borrowed_items' %}">All Borrowed</a>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="inventoryDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  Inventory Management
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="inventoryDropdown">
+                  <li><a class="dropdown-item" href="{% url 'borrow:add_item' %}">Add New Item</a></li>
+                  <li><a class="dropdown-item" href="{% url 'borrow:approve_requests' %}">Approve Borrow Requests</a></li>
+                  <li><a class="dropdown-item" href="{% url 'borrow:all_borrowed_items' %}">All Borrowed Items</a></li>
+                </ul>
+              </li>
+
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="usersDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  User Management
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="usersDropdown">
+                  <li><a class="dropdown-item" href="{% url 'borrow:manage_users' %}">Manage Users</a></li>
+                </ul>
               </li>
             {% endif %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'borrow:manage_collections' %}">Manage Collections</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'borrow:my_borrowed_items' %}">My Borrowed</a>
-            </li>
           {% endif %}
 
+          <!-- Admin Link - Keep it separate if it's for system administrators -->
           <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
         </ul>
+        
+        <!-- User Account Section - Right side of navbar -->
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
           {% if user.is_authenticated %}
             <li class="nav-item">
