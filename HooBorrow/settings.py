@@ -37,6 +37,13 @@ if not DEBUG and 'test' not in sys.argv:
     # Content security
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
+    CSP_DEFAULT_SRC = ("'self'",)
+    CSP_SCRIPT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://code.jquery.com', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com')
+    CSP_STYLE_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com', "'unsafe-inline'")
+    CSP_IMG_SRC = ("'self'", 'data:', '*.amazonaws.com')
+    CSP_FONT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com')
+    CSP_CONNECT_SRC = ("'self'",)
+    CSP_FRAME_SRC = ("'self'", 'https://accounts.google.com')
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -62,10 +69,12 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'storages',
+    'csp',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
