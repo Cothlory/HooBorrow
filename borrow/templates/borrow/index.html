@@ -6,6 +6,16 @@
 {% block content %}
 <div class="my-4">
     <h2>Items</h2>
+    <form method="get" class="d-flex mb-4">
+        <input
+          class="form-control me-2"
+          type="search"
+          name="q"
+          placeholder="Search items…"
+          value="{{ q }}"
+          aria-label="Search">
+        <button class="btn btn-outline-primary" type="submit">Search</button>
+      </form> 
     {% if borrow_items_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for item in borrow_items_list %}

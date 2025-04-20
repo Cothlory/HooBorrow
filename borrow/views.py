@@ -6,6 +6,8 @@ from django.views import generic
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import Q
+
 
 from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review
 from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm
@@ -18,7 +20,15 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
-        return Item.objects.all().order_by("name")
+        qs = Item.objects.all().order_by("name")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(location__icontains=q)
+                | Q(instructions__icontains=q)
+            )
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
