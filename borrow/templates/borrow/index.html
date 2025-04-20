@@ -15,6 +15,18 @@
           value="{{ q }}"
           aria-label="Search">
         <button class="btn btn-outline-primary" type="submit">Search</button>
+      </form>
+      <form method="get" class="d-flex mb-4">
+        <select name="category" class="form-select me-2" onchange="this.form.submit()">
+          <option value="">All Categories</option>
+          {% for value,label in CategoryChoices %}
+            <option value="{{ value }}"
+              {% if value == current_category %}selected{% endif %}>
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+        <noscript><button class="btn btn-primary">Filter</button></noscript>
       </form> 
     {% if borrow_items_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">

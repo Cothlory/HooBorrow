@@ -20,7 +20,10 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
-        qs = Item.objects.all().order_by("name")
+        qs = Item.objects.all().order_by('name')
+        cat = self.request.GET.get('category')
+        if cat in dict(Item.CATEGORY_CHOICES):
+            qs = qs.filter(category=cat)
         q = self.request.GET.get("q", "").strip()
         if q:
             qs = qs.filter(
@@ -32,6 +35,8 @@ class IndexView(generic.ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['CategoryChoices'] = Item.CATEGORY_CHOICES
+        context['current_category'] = self.request.GET.get('category','')
         if self.request.user.is_authenticated:
             context['collections_list'] = Collections.objects.all().order_by("title")
         else:
@@ -164,54 +169,84 @@ def approve_requests(request):
 
 @login_required
 def add_item(request):
+    # Only librarians can reach this
     try:
-        librarian = Librarian.objects.get(user=request.user) 
-    except Librarian.DoesNotExist:
-        return HttpResponseForbidden("You are not a librarian and cannot add items.") 
-
-    if request.method == 'POST':
-        # Determine the selected item type from the form
-        item_type = request.POST.get('item_type')
-        if item_type == 'simple':
-            return redirect('borrow:add_simple_item')  # Redirect to the SimpleItem form
-        elif item_type == 'complex':
-            return redirect('borrow:add_complex_item')  # Redirect to the ComplexItem form
-    return render(request, 'borrow/choose_item_type.html')  # Show the item type selection page
-
-
-def add_simple_item(request):
-    try:
-        librarian = Librarian.objects.get(user=request.user) 
+        Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+    if request.method == 'POST':
+        # Grab the selected category from the form POST
+        category = request.POST.get('category', Item.CATEGORY_OTHER)
+
+        # Redirect to the appropriate form, appending ?category=
+        if category == Item.CATEGORY_BALLS:
+            return redirect(f"{reverse('borrow:add_simple_item')}?category={category}")
+        else:
+            return redirect(f"{reverse('borrow:add_complex_item')}?category={category}")
+
+    # GET: render the chooser with the category options
+    return render(request, 'borrow/choose_item_type.html', {
+        'CategoryChoices': Item.CATEGORY_CHOICES
+    })
+
+
+@login_required
+def add_simple_item(request):
+    # only librarians can add
+    try:
+        Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+    # pick up the category from the querystring (default to OTHER)
+    category = request.GET.get('category', Item.CATEGORY_OTHER)
 
     if request.method == 'POST':
         form = SimpleItemForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
-            return redirect('home')  # Redirect to item list or another view
+            item = form.save(commit=False)
+            # ensure the chosen category is applied
+            item.category = form.cleaned_data.get('category', category)
+            item.save()
+            return redirect('home')
     else:
-        form = SimpleItemForm()
-    
-    return render(request, 'borrow/add_simple_item.html', {'form': form, 'item_type': 'Simple Item'})
+        # pre-fill the hidden category field
+        form = SimpleItemForm(initial={'category': category})
+
+    return render(request, 'borrow/add_simple_item.html', {
+        'form': form,
+        'item_type': 'Simple Item',
+    })
 
 
+@login_required
 def add_complex_item(request):
+    # only librarians can add
     try:
-        librarian = Librarian.objects.get(user=request.user)
+        Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
+
+    # pick up the category from the querystring (default to OTHER)
+    category = request.GET.get('category', Item.CATEGORY_OTHER)
 
     if request.method == 'POST':
         form = ComplexItemForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
-            return redirect('home')  # Redirect to item list or another view
+            item = form.save(commit=False)
+            # ensure the chosen category is applied
+            item.category = form.cleaned_data.get('category', category)
+            item.save()
+            return redirect('home')
     else:
-        form = ComplexItemForm()
+        # pre-fill the hidden category field
+        form = ComplexItemForm(initial={'category': category})
 
-    return render(request, 'borrow/add_complex_item.html', {'form': form, 'item_type': 'Complex Item'})
-
+    return render(request, 'borrow/add_complex_item.html', {
+        'form': form,
+        'item_type': 'Complex Item',
+    })
 
 def manage_users(request):
     try:
