@@ -4,13 +4,18 @@ from .models import SimpleItem, ComplexItem, Collections, Patron, Review
 class SimpleItemForm(forms.ModelForm):
     class Meta:
         model = SimpleItem
-        fields = ['name', 'quantity', 'location', 'instructions', 'photo']
+        fields = ['name', 'quantity', 'location', 'instructions', 'photo', 'category']
+        widgets = {
+            'category': forms.HiddenInput(),
+        }
 
 class ComplexItemForm(forms.ModelForm):
     class Meta:
         model = ComplexItem
-        fields = ['name', 'quantity', 'location', 'instructions', 'condition', 'photo']
-
+        fields = ['name', 'quantity', 'location', 'instructions', 'photo', 'condition', 'category']
+        widgets = {
+            'category': forms.HiddenInput(),
+        }
 class QuantityForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity", required=True)
 
