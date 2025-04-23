@@ -198,8 +198,6 @@ class BorrowRequest(models.Model):
         self.status = self.REJECTED
         self.save()
 
-
-
 class Librarian(Patron):
     can_add_items = models.BooleanField(default=True)
 
@@ -266,6 +264,36 @@ class Collections(models.Model):
     def __str__(self):
         return self.title
 
+class CollectionRequest(models.Model): 
+    PENDING = 'PENDING'
+    APPROVED = 'APPROVED'
+    REJECTED = 'REJECTED'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+    ]
+    user = models.ForeignKey(Patron, on_delete=models.CASCADE)
+    collection = models.ForeignKey(Collections, on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=PENDING
+    )
+    notes = models.CharField(max_length=500)
+
+    def __str__(self):
+        return f"Request by {self.user.name} for private collection {self.collection.name} - {self.status}"
+
+    def approve(self):
+        self.status = self.APPROVED
+        self.save()
+
+    def reject(self):
+        self.status = self.REJECTED
+        self.save()
 
 class Review(models.Model):
     RATING_CHOICES = (
