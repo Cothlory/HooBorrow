@@ -55,3 +55,7 @@ class ReviewForm(forms.ModelForm):
             'rating': forms.Select(attrs={'class': 'form-select'}),
             'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
+
+class CollectionRequestForm(forms.Form):
+    notes = forms.CharField(label="Enter Reason", max_length=100)
+        
