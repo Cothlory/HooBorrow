@@ -3,10 +3,17 @@
 {% block content %}
   <h2>Select Item Type to Add</h2>
 
-  <form method="POST">
+  <form method="post">
     {% csrf_token %}
-    <button type="submit" name="item_type" value="simple">Add Simple Item</button>
-    <button type="submit" name="item_type" value="complex">Add Complex Item</button>
+    <div class="mb-3">
+      <label for="id_category" class="form-label">Category</label>
+      <select name="category" id="id_category" class="form-select">
+        {% for value,label in CategoryChoices %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Next</button>
   </form>
 
 {% endblock %}

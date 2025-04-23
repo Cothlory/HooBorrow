@@ -6,11 +6,30 @@ from django.core.exceptions import ValidationError
 
 
 class Item(models.Model):
+    CATEGORY_BALLS   = 'BALLS'
+    CATEGORY_STICKS  = 'STICKS'
+    CATEGORY_NETS    = 'NETS'
+    CATEGORY_OTHER   = 'OTHER'
+
+    CATEGORY_CHOICES = [
+        (CATEGORY_BALLS,  'Balls / Frisbees'),
+        (CATEGORY_STICKS, 'Sticks / Rackets'),
+        (CATEGORY_NETS,   'Nets / Goals'),
+        (CATEGORY_OTHER,  'Other Sporting Equipment'),
+    ]
+
     name = models.CharField(max_length=200)
     quantity = models.IntegerField(default=0)
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
+
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        default=CATEGORY_OTHER,
+        help_text="Used for grouping in browse and picking the right form"
+    )
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
