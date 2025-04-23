@@ -173,3 +173,5 @@ STORAGES = {
         "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
 }
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
