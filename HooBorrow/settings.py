@@ -201,3 +201,21 @@ STORAGES = {
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
 
+CONTENT_SECURITY_POLICY = {'DIRECTIVES': {'connect-src': ("'self'",),
+                'default-src': ("'self'",),
+                'font-src': ("'self'",
+                             'https://cdn.jsdelivr.net',
+                             'https://cdnjs.cloudflare.com'),
+                'frame-src': ("'self'", 'https://accounts.google.com'),
+                'img-src': ("'self'", 'data:', '*.amazonaws.com'),
+                'script-src': ("'self'",
+                               'https://cdn.jsdelivr.net',
+                               'https://code.jquery.com',
+                               'https://stackpath.bootstrapcdn.com',
+                               'https://cdnjs.cloudflare.com'),
+                'style-src': ("'self'",
+                              'https://cdn.jsdelivr.net',
+                              'https://stackpath.bootstrapcdn.com',
+                              'https://cdnjs.cloudflare.com',
+                              "'unsafe-inline'")}}
+
