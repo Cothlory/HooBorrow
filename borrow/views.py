@@ -9,8 +9,8 @@ from django.contrib import messages
 from django.db.models import Q
 
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review
-from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review, CollectionRequest
+from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm, CollectionRequestForm
 
 def index(request):
     return render(request, 'borrow/index.html')
@@ -442,7 +442,6 @@ def add_review(request, pk):
 
 @login_required
 def my_borrowed_items(request):
-    """View to display all items borrowed by the logged-in user"""
     try:
         patron = Patron.objects.get(user=request.user)
         borrowed_items = BorrowedItem.objects.filter(borrower=patron, returned=False)
@@ -453,7 +452,6 @@ def my_borrowed_items(request):
 
 @login_required
 def all_borrowed_items(request):
-    """View for librarians to see all currently borrowed items"""
     try:
         librarian = Librarian.objects.get(user=request.user)
         borrowed_items = BorrowedItem.objects.filter(returned=False)
@@ -463,10 +461,8 @@ def all_borrowed_items(request):
 
 @login_required
 def return_item(request, borrowed_item_id):
-    """Process the return of a borrowed item"""
     borrowed_item = get_object_or_404(BorrowedItem, id=borrowed_item_id, returned=False)
     
-    # Verify that the user is either the borrower or a librarian
     is_borrower = False
     is_librarian = False
     
@@ -488,12 +484,10 @@ def return_item(request, borrowed_item_id):
     if request.method == "POST":
         quantity_to_return = int(request.POST.get('quantity', 1))
         
-        # Make sure the quantity to return is valid
         if quantity_to_return <= 0 or quantity_to_return > borrowed_item.quantity:
             messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.")
             return redirect('borrow:my_borrowed_items' if is_borrower else 'borrow:all_borrowed_items')
         
-        # Process the return based on item type
         item = borrowed_item.item
         success = False
         
@@ -502,12 +496,10 @@ def return_item(request, borrowed_item_id):
                 simple_item = SimpleItem.objects.get(id=item.id)
                 if is_borrower:
                     success = borrowed_item.borrower.return_simple_item(simple_item, quantity_to_return)
-                else:  # librarian
-                    # Update the item quantity
+                else:  
                     simple_item.quantity += quantity_to_return
                     simple_item.save()
                     
-                    # Update the borrowed item
                     borrowed_item.quantity -= quantity_to_return
                     if borrowed_item.quantity == 0:
                         borrowed_item.returned = True
@@ -515,17 +507,15 @@ def return_item(request, borrowed_item_id):
                     success = True
             except SimpleItem.DoesNotExist:
                 messages.error(request, f"Item {item.name} not found as a Simple Item.")
-        else:  # COMPLEX
+        else: 
             try:
                 complex_item = ComplexItem.objects.get(id=item.id)
                 if is_borrower:
                     success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
-                else:  # librarian
-                    # Update the item quantity
+                else: 
                     complex_item.quantity += quantity_to_return
                     complex_item.save()
                     
-                    # Update the borrowed item
                     borrowed_item.quantity -= quantity_to_return
                     if borrowed_item.quantity == 0:
                         borrowed_item.returned = True
@@ -539,11 +529,73 @@ def return_item(request, borrowed_item_id):
         else:
             messages.error(request, f"Failed to return {item.name}. Please try again.")
         
-        # Redirect to appropriate page
         if is_borrower:
             return redirect('borrow:my_borrowed_items')
         else:
             return redirect('borrow:all_borrowed_items')
     
-    # Handle GET request - show return confirmation form
     return render(request, 'borrow/return_item.html', {'borrowed_item': borrowed_item})
+
+@login_required
+def approve_collection_requests(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user) 
+    except Librarian.DoesNotExist:
+        return HttpResponseForbidden("You are not a librarian and cannot approve requests.")
+
+    # Fetch all the borrow requests that are PENDING
+    collection_requests = CollectionRequest.objects.filter(status=CollectionRequest.PENDING)
+
+    if request.method == "POST":
+        request_id = request.POST.get('request_id')
+        action = request.POST.get('action')  # 'approve' or 'reject'
+
+        try:
+            collection_request = CollectionRequest.objects.get(id=request_id)
+        except CollectionRequest.DoesNotExist:
+            messages.error(request, "Collection request not found.")
+            return redirect('borrow:approve_collection_requests')
+
+        if action == 'approve':
+            collection = collection_request.collection
+            user = collection_request.user
+            try:
+                collection.allowed_users.add(user)
+                collection_request.status = CollectionRequest.APPROVED
+                collection_request.save()
+                messages.success(request, "Collection request has been approved.")
+            except Exception as e:
+                messages.error(request, f"Error occurred while approving the request: {str(e)}")
+                return redirect('borrow:approve_collection_requests')
+
+        elif action == 'reject':
+            collection_request.status = CollectionRequest.REJECTED
+            collection_request.save()
+            messages.error(request, f"Request for {collection_request.collection.title} has been rejected.")
+
+        return redirect('borrow:approve_collection_requests')  # Redirect to the same page to refresh the list
+
+    return render(request, 'borrow/approve_collection_requests.html', {'collection_requests': collection_requests})
+
+@login_required
+def request_collection(request, pk):
+    try:
+        patron = Patron.objects.get(user=request.user)
+    except Patron.DoesNotExist:
+        return redirect('account:profile')  # Redirect if not a Patron
+    
+    # get collection from the list
+    collection = Collections.objects.get(pk=pk)
+
+    # Create a form instance with POST data if the form is submitted
+    form = CollectionRequestForm(request.POST or None)
+    
+    if request.method == "POST" and form.is_valid():
+        notes = form.cleaned_data['notes']
+        collection_request = CollectionRequest.objects.create(user=patron, collection=collection, notes=notes, date= timezone.now())
+        print(request)
+        collection_request.save()
+        messages.success(request, 'Your request to join this collection has been sent to the librarian.')
+        return redirect('borrow:collection_detail', pk=pk)
+
+    return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})

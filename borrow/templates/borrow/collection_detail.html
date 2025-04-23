@@ -14,8 +14,8 @@
         {% endif %}</small>
     </p>
     
-    {% if object.is_collection_private and visible_items|length == 0 %}
-      <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
+    {% if object.is_collection_private and request.user.patron != object.creator and request.user.patron not in object.allowed_users.all and not request.user.is_librarian %}
+        <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
     {% endif %}
     
     <div class="row row-cols-1 row-cols-md-3 g-4">
@@ -41,5 +41,10 @@
             <p class="lead">No items in this collection.</p>
         {% endfor %}
     </div>
+    {% if object.is_collection_private and not object|can_view:request.user %}
+        <div>
+            <a href="{% url 'borrow:request_collection' object.id %}" class="btn btn-primary btn-sm">Request to Join</a>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
