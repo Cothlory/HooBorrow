@@ -41,8 +41,10 @@
             <p class="lead">No items in this collection.</p>
         {% endfor %}
     </div>
-    <div>
-        <a href="{% url 'borrow:request_collection' object.id %}" class="btn btn-primary btn-sm">Request to Join</a>
-    </div>
+    {% if object.is_collection_private and not object|can_view:request.user %}
+        <div>
+            <a href="{% url 'borrow:request_collection' object.id %}" class="btn btn-primary btn-sm">Request to Join</a>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
