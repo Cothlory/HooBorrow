@@ -61,7 +61,7 @@ if not DEBUG and 'test' not in sys.argv:
                 'https://cdnjs.cloudflare.com',
                 "'unsafe-inline'",
             ),
-            'img-src': ("'self'", 'data:', '*.amazonaws.com'),
+            'img-src': ("'self'", 'data:', '*.amazonaws.com', f'https://{AWS_S3_CUSTOM_DOMAIN}'),
             'font-src': (
                 "'self'",
                 'https://cdn.jsdelivr.net',
