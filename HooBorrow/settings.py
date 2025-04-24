@@ -23,7 +23,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dummy-secret-key')
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
- # AWS S3 Configuration for Media Files
+# AWS S3 Configuration for Media Files
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
@@ -225,6 +225,12 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
+    "media": {
+        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
+    }
 }
+
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+MEDIA_ROOT = 'media/'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
