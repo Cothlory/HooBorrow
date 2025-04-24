@@ -32,7 +32,6 @@ AWS_S3_FILE_OVERWRITE = False
 
 AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
 
-
 if not DEBUG and 'test' not in sys.argv:
     # HTTPS/SSL
     SECURE_SSL_REDIRECT = True
@@ -225,12 +224,6 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
-    "media": {
-        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
-    }
 }
-
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-MEDIA_ROOT = 'media/'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
