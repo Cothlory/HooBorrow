@@ -44,8 +44,8 @@ if not DEBUG and 'test' not in sys.argv:
     CSRF_COOKIE_SECURE = True
 
     # # Content security
-    # SECURE_CONTENT_TYPE_NOSNIFF = True
-    # SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
     # CSP_DEFAULT_SRC = ("'self'",)
     # CSP_SCRIPT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://code.jquery.com', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com')
     # CSP_STYLE_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com', "'unsafe-inline'")
@@ -217,13 +217,18 @@ LOGIN_REDIRECT_URL = '/accounts/profile/'
 
 
 STORAGES = {
-    "default":{
-        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
+    "default": {
+        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
     },
-
     "staticfiles": {
         "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
+    "media": {
+        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
+    }
 }
+
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+MEDIA_ROOT = 'media/'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
