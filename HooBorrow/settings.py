@@ -23,15 +23,6 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dummy-secret-key')
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-# AWS S3 Configuration for Media Files
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
-AWS_S3_FILE_OVERWRITE = False
-
-AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
-
 if not DEBUG and 'test' not in sys.argv:
     # HTTPS/SSL
     SECURE_SSL_REDIRECT = True
@@ -42,44 +33,17 @@ if not DEBUG and 'test' not in sys.argv:
     # Cookies
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-
-    # # Content security
+    
+    # Content security
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
-    # CSP_DEFAULT_SRC = ("'self'",)
-    # CSP_SCRIPT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://code.jquery.com', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com')
-    # CSP_STYLE_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com', "'unsafe-inline'")
-    # CSP_IMG_SRC = ("'self'", 'data:', '*.amazonaws.com')
-    # CSP_FONT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com')
-    # CSP_CONNECT_SRC = ("'self'",)
-    # CSP_FRAME_SRC = ("'self'", 'https://accounts.google.com')
-    CONTENT_SECURITY_POLICY = {
-        'DIRECTIVES': {
-            'default-src': ("'self'",),
-            'script-src': (
-                "'self'",
-                'https://cdn.jsdelivr.net',
-                'https://code.jquery.com',
-                'https://stackpath.bootstrapcdn.com',
-                'https://cdnjs.cloudflare.com',
-            ),
-            'style-src': (
-                "'self'",
-                'https://cdn.jsdelivr.net',
-                'https://stackpath.bootstrapcdn.com',
-                'https://cdnjs.cloudflare.com',
-                "'unsafe-inline'",
-            ),
-            'img-src': ("'self'", 'data:', '*.amazonaws.com', f'https://{AWS_S3_CUSTOM_DOMAIN}'),
-            'font-src': (
-                "'self'",
-                'https://cdn.jsdelivr.net',
-                'https://cdnjs.cloudflare.com',
-            ),
-            'frame-src': ("'self'", 'https://accounts.google.com'),
-            'connect-src': ("'self'",),
-        }
-    }
+    CSP_DEFAULT_SRC = ("'self'",)
+    CSP_SCRIPT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://code.jquery.com', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com')
+    CSP_STYLE_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://stackpath.bootstrapcdn.com', 'https://cdnjs.cloudflare.com', "'unsafe-inline'")
+    CSP_IMG_SRC = ("'self'", 'data:', '*.amazonaws.com')
+    CSP_FONT_SRC = ("'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com')
+    CSP_CONNECT_SRC = ("'self'",)
+    CSP_FRAME_SRC = ("'self'", 'https://accounts.google.com')
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -215,20 +179,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = '/accounts/profile/'
 
+# AWS S3 Configuration for Media Files
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+AWS_S3_FILE_OVERWRITE = False
 
 STORAGES = {
-    "default": {
-        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
+    "default":{
+        "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
+
     "staticfiles": {
         "BACKEND": 'storages.backends.s3boto3.S3StaticStorage',
     },
-    "media": {
-        "BACKEND": 'storages.backends.s3boto3.S3Boto3Storage',
-    }
 }
-
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-MEDIA_ROOT = 'media/'
-
-MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
