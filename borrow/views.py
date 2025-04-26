@@ -321,23 +321,52 @@ def edit_collection(request, pk):
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
-    
-    if is_librarian:
-        collection = get_object_or_404(Collections, pk=pk)
-    else:
-        collection = get_object_or_404(Collections, pk=pk, creator=creator)
-    
-    if request.method == "POST":
-        form = CollectionForm(request.POST, instance=collection, librarian=librarian if is_librarian else creator, is_librarian=is_librarian, editing=True)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Collection '{collection.title}' updated successfully.")
-            return redirect("borrow:manage_collections")
-    else:
-        form = CollectionForm(instance=collection, librarian=librarian if is_librarian else creator, is_librarian=is_librarian, editing=True)
-    
-    return render(request, "borrow/edit_collection.html", {"form": form, "collection": collection})
 
+    if is_librarian:
+        coll = get_object_or_404(Collections, pk=pk)
+    else:
+        coll = get_object_or_404(Collections, pk=pk, creator=creator)
+
+    if request.method == "POST":
+        form = CollectionForm(request.POST, instance=coll,
+                              librarian=librarian if is_librarian else creator,
+                              is_librarian=is_librarian, editing=True)
+        if form.is_valid():
+            # compute newly‐added items only
+            old_set = set(coll.items_list.all())
+            new_set = set(form.cleaned_data['items_list']) - old_set
+            errs = []
+            for item in new_set:
+                existing = Collections.objects.exclude(pk=coll.pk).filter(items_list=item)
+                if coll.is_collection_private:
+                    if existing.exists():
+                        errs.append(
+                            f"‘{item.name}’ is already in “{existing.first().title}”; "
+                            "private collections must be disjoint."
+                        )
+                else:
+                    priv = existing.filter(is_collection_private=True).first()
+                    if priv:
+                        errs.append(
+                            f"‘{item.name}’ lives in private “{priv.title}”; "
+                            "public collections cannot include it."
+                        )
+            if errs:
+                for e in errs:
+                    messages.error(request, e)
+            else:
+                form.save()
+                messages.success(request, f"Collection '{coll.title}' updated.")
+                return redirect('borrow:manage_collections')
+    else:
+        form = CollectionForm(instance=coll,
+                              librarian=librarian if is_librarian else creator,
+                              is_librarian=is_librarian, editing=True)
+
+    return render(request, "borrow/edit_collection.html", {
+        "form": form,
+        "collection": coll,
+    })
 
 @login_required
 def delete_collection(request, pk):
@@ -598,16 +627,38 @@ def create_collection(request):
     if request.method == "POST":
         form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
         if form.is_valid():
-            collection = form.save(commit=False)
-            if not is_librarian:
-                collection.is_collection_private = False
-            collection.save()
-            form.save_m2m()
-            messages.success(request, f"Collection '{collection.title}' created.")
-            return redirect('borrow:manage_collections')
+            new_items = list(form.cleaned_data['items_list'])
+            errs = []
+            for item in new_items:
+                existing = Collections.objects.filter(items_list=item)
+                if form.cleaned_data.get('is_collection_private'):
+                    if existing.exists():
+                        errs.append(
+                            f"‘{item.name}’ is already in “{existing.first().title}”; "
+                            "private collections must be disjoint."
+                        )
+                else:
+                    priv = existing.filter(is_collection_private=True).first()
+                    if priv:
+                        errs.append(
+                            f"‘{item.name}’ lives in private “{priv.title}”; "
+                            "public collections cannot include it."
+                        )
+
+            if errs:
+                for e in errs:
+                    messages.error(request, e)
+            else:
+                coll = form.save(commit=False)
+                if not is_librarian:
+                    coll.is_collection_private = False
+                coll.save()
+                form.save_m2m()
+                messages.success(request, f"Collection '{coll.title}' created.")
+                return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(librarian=creator, is_librarian=is_librarian)
-    
+
     return render(request, 'borrow/create_collection.html', {
         'form': form,
         'is_librarian': is_librarian,
