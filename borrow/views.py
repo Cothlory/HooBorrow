@@ -383,11 +383,11 @@ def delete_collection(request, pk):
         collection = get_object_or_404(Collections, pk=pk, creator=creator)
     
     if request.method == "POST":
+        collection_title = collection.title
         collection.delete()
-        messages.success(request, f"Collection '{collection.title}' deleted successfully.", extra_tags='current-page')
+        messages.success(request, f"Collection '{collection_title}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_collections")
-    
-    return render(request, "borrow/confirm_delete_collection.html", {"collection": collection})
+    return redirect("borrow:manage_collections")
 
 class CollectionDetailView(generic.DetailView):
     model = Collections
