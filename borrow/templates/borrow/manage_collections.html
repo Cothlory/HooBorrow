@@ -24,8 +24,8 @@
           <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
         </div>
       </li>
-    {% empty %}
-      <li class="list-group-item">No collections found.</li>
+      {% empty %}
+      <p>You don't have collections yet.</p>
     {% endfor %}
   </ul>
 </div>

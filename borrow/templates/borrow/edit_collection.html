@@ -3,13 +3,6 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Edit Collection: {{ collection.title }}</h2>
-  {% if messages %}
-    <div class="alert alert-info">
-      {% for message in messages %}
-        {{ message }}
-      {% endfor %}
-    </div>
-  {% endif %}
   
   <form method="post">
     {% csrf_token %}
