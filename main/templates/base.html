@@ -11,6 +11,21 @@
   {% bootstrap_javascript %}
   <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
   <link rel="stylesheet" href="{% static 'main/style.css' %}">
+  <style>
+    .dropdown-menu {
+      display: block;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+    }
+    
+    .dropdown-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+  </style>
 </head>
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
@@ -26,15 +41,8 @@
           
           {% if user.is_authenticated %}
             <!-- Item and Collection Management - For all authenticated users -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="myContentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                My Items/Collections
-              </a>
-              <ul class="dropdown-menu" aria-labelledby="myContentDropdown">
-                <li><a class="dropdown-item" href="{% url 'borrow:my_borrowed_items' %}">My Borrowed Items</a></li>
-                <li><a class="dropdown-item" href="{% url 'borrow:manage_collections' %}">My Collections</a></li>
-              </ul>
-            </li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'borrow:my_borrowed_items' %}">Borrowed Items</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_collections' %}">Collections</a></li>
 
             <!-- Librarian Management Group - Only for librarians -->
             {% if user|is_librarian %}
@@ -125,5 +133,43 @@
       </div>
     </div>
   </div>
+  <div class="toast-container position-fixed top-0 end-0 p-3">
+    {% if messages %}
+      {% for message in messages %}
+        {% if 'current-page' in message.tags %}
+          {% if 'error' in message.tags %}
+            <div class="toast text-white bg-danger border-0 fade" role="alert" aria-live="assertive" aria-atomic="true">
+          {% elif 'success' in message.tags %}
+            <div class="toast text-white bg-success border-0 fade" role="alert" aria-live="assertive" aria-atomic="true">
+          {% elif 'warning' in message.tags %}
+            <div class="toast text-dark bg-warning border-0 fade" role="alert" aria-live="assertive" aria-atomic="true">
+          {% else %}
+            <div class="toast text-white bg-info border-0 fade" role="alert" aria-live="assertive" aria-atomic="true">
+          {% endif %}
+            <div class="d-flex">
+              <div class="toast-body">
+                {{ message }}
+              </div>
+              <button type="button" class="btn-close {% if not 'warning' in message.tags %}btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+      var toastList = toastElList.map(function(toastEl) {
+        return new bootstrap.Toast(toastEl, {
+          autohide: true,
+          delay: 5000
+        });
+      });
+      setTimeout(function() {
+        toastList.forEach(toast => toast.show());
+      }, 100);
+    });
+  </script>
 </body>
 </html>

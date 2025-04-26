@@ -2,14 +2,9 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h2>Edit Collection: {{ collection.title }}</h2>
-  {% if messages %}
-    <div class="alert alert-info">
-      {% for message in messages %}
-        {{ message }}
-      {% endfor %}
-    </div>
-  {% endif %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Edit Collection: {{ collection.title }}</h2>
+  </div>
   
   <form method="post">
     {% csrf_token %}
