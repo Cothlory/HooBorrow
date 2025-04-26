@@ -14,11 +14,17 @@ def home(request):
 
 @login_required
 def profile_view(request):
-    # Ensure the user has a Patron instance; if not, create one
-    patron, created = Patron.objects.get_or_create(user=request.user, email = request.user.email, name = request.user.get_full_name())
-
-    # If a new Patron object was just created, redirect to profile to ensure smooth flow
-    if created:
+    # Try to get the existing Patron instance
+    try:
+        patron = Patron.objects.get(user=request.user)
+    except Patron.DoesNotExist:
+        # Only create a new one if it doesn't exist
+        patron = Patron.objects.create(
+            user=request.user,
+            email=request.user.email,
+            name=request.user.get_full_name(),
+        )
+        # Redirect to ensure smooth flow
         return redirect('profile')
 
     # Check if the user has a Librarian instance
@@ -38,7 +44,7 @@ def profile_view(request):
         patron.save()
         return redirect('profile')
 
-    return render(request, 'account/profile.html', {'role': role})
+    return render(request, 'account/profile.html', {'role': role, 'patron': patron})
 
 def redirect_to_home(request):
     """Redirect users trying to access AllAuth pages to the home page with a message"""
