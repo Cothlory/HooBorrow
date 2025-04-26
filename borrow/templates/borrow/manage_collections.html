@@ -1,80 +1,32 @@
 {% extends 'base.html' %}
 
+{% block title %}My Collections | HooBorrow{% endblock %}
 {% block content %}
-  <h1>Manage Collections</h1>
-  
-  <h2>Create New Collection</h2>
-  <form method="post">
-    {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-    <p>
-      {{ form.title.label_tag }}<br>
-      {{ form.title }}
-    </p>
-    <p>
-      {{ form.description.label_tag }}<br>
-      {{ form.description }}
-    </p>
-    <p>
-      {{ form.items_list.label_tag }}<br>
-      {{ form.items_list }}
-    </p>
-    {% if is_librarian %}
-      <p>
-        {{ form.is_collection_private.label_tag }}
-        {{ form.is_collection_private }}
-      </p>
-    {% endif %}
-    <div id="allowed_users_div">
-      <p>
-        {{ form.allowed_users.label_tag }}<br>
-        {{ form.allowed_users }}
-      </p>
-    </div>
-    <button type="submit">Create Collection</button>
-  </form>
-
-  <h2>Your Collections</h2>
-  <ul>
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>My Collections</h2>
+    <a href="{% url 'borrow:create_collection' %}" class="btn btn-success">Create New Collection</a>
+  </div>
+  <ul class="list-group">
     {% for collection in collections %}
-      <li>
-        <strong>{{ collection.title }}</strong>: {{ collection.description }}
-        <a href="{% url 'borrow:edit_collection' collection.pk %}">Edit</a> |
-        <a href="{% url 'borrow:delete_collection' collection.pk %}">Delete</a>
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ collection.title }}</strong>: {{ collection.description }}
+          {% if collection.is_collection_private %}
+            <span class="badge bg-warning text-dark">Private</span>
+          {% else %}
+            <span class="badge bg-success">Public</span>
+          {% endif %}
+        </div>
+        <div>
+          <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+          <a href="{% url 'borrow:delete_collection' collection.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+          <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+        </div>
       </li>
     {% empty %}
-      <li>No collections found.</li>
+      <li class="list-group-item">No collections found.</li>
     {% endfor %}
   </ul>
-
-  {% if is_librarian %}
-    <script>
-      document.addEventListener('DOMContentLoaded', function(){
-        var isPrivateCheckbox = document.getElementById('id_is_collection_private');
-        var allowedUsersDiv = document.getElementById('allowed_users_div');
-        function toggleAllowedUsers(){
-          if(isPrivateCheckbox.checked){
-            allowedUsersDiv.style.display = '';
-          } else {
-            allowedUsersDiv.style.display = 'none';
-          }
-        }
-        isPrivateCheckbox.addEventListener('change', toggleAllowedUsers);
-        toggleAllowedUsers();
-      });
-    </script>
-  {% else %}
-    <script>
-      document.addEventListener('DOMContentLoaded', function(){
-        var allowedUsersDiv = document.getElementById('allowed_users_div');
-        if(allowedUsersDiv){
-          allowedUsersDiv.style.display = 'none';
-        }
-      });
-    </script>
-  {% endif %}
+</div>
 {% endblock %}
