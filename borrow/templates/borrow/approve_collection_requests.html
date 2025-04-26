@@ -1,24 +1,26 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Approve Collection Requests</h2>
+    </div>
 
-<h2>Approve Collection Requests</h2>
-
-{% if collection_requests %}
-    {% for collection_request in collection_requests %}
-        <div>
-            <p>{{ collection_request.user.name }} requested to join {{ collection_request.collection.title }}</p>
-            
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="request_id" value="{{ collection_request.id }}">
-                <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
-                <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
-            </form>
-        </div>
-    {% endfor %}
-{% else %}
-    <p>No requests to approve.</p>
-{% endif %}
-
+    {% if collection_requests %}
+        {% for collection_request in collection_requests %}
+            <div>
+                <p>{{ collection_request.user.name }} requested to join {{ collection_request.collection.title }}</p>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="request_id" value="{{ collection_request.id }}">
+                    <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+                </form>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="lead">No requests to approve.</p>
+    {% endif %}
+</div>
 {% endblock %}

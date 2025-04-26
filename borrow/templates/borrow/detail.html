@@ -6,13 +6,15 @@
 {% block title %}{{ object.name }}{% endblock %}
 {% block content %}
   
-  <div class="my-4">
+  <div class="container my-4">
     {% if object.photo %}
       <img src="{{ object.photo.url }}" alt="{{ object.name }}" style="width: 10%; height: auto; margin: 0 auto 20px;">
     {% else %}
       <p>No photo available for this item.</p>
     {% endif %}
-    <h2>{{ object.name }}</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>{{ object.name }}</h2>
+    </div>
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
     <p><strong>Instructions:</strong> {{ object.instructions }}</p>
     <p><strong>Location:</strong> {{ object.location }}</p>
@@ -33,15 +35,15 @@
 
     {% if request.user.is_authenticated %}
       {% if borrowed %}
-          <p>You have already borrowed this item.</p>
+          <p class="lead">You have already borrowed this item.</p>
       {% else %}
           <a href="{% url 'borrow:borrow_item' pk=object.pk %}" class="btn btn-primary">Borrow Item</a>
       {% endif %}
     {% else %}
-        <p>You need to be logged in to borrow this item.</p>
+        <p class="lead">You need to be logged in to borrow this item.</p>
     {% endif %}
-    
-    <h2>Borrowers</h2>
+    <hr>
+    <h3>Borrowers</h3>
     {% if borrowers_info %}
       <ul>
         {% for borrower in borrowers_info %}
@@ -59,22 +61,10 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p>No borrowers yet.</p>
+      <p class="lead">No borrowers yet.</p>
     {% endif %}
-  </div>
 
-  <div class="my-4">
     <h3>Reviews</h3>
-
-    {% if can_review %}
-      <div class="mb-3">
-        {% if has_reviewed %}
-          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-outline-primary">Edit Your Review</a>
-        {% else %}
-          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-primary">Add a Review</a>
-        {% endif %}
-      </div>
-    {% endif %}
 
     {% if reviews %}
       <div class="row">
@@ -102,7 +92,17 @@
         {% endfor %}
       </div>
     {% else %}
-      <p>No reviews yet.</p>
+      <p class="lead">No reviews yet.</p>
+    {% endif %}
+
+    {% if can_review %}
+      <div class="mb-3">
+        {% if has_reviewed %}
+          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-outline-primary">Edit Your Review</a>
+        {% else %}
+          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-primary">Add a Review</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 {% endblock %}

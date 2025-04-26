@@ -4,8 +4,11 @@
 
 {% block title %}Browse | HooBorrow{% endblock %}
 {% block content %}
-<div class="my-4">
-    <h2>Items</h2>
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Items</h2>
+    </div>
+    
     <form method="get" class="d-flex mb-4">
         <input
           class="form-control me-2"
@@ -69,9 +72,12 @@
     {% else %}
         <p class="lead">No items are available to borrow.</p>
     {% endif %}
-
+    <br>
     <hr>
-    <h2>Collections</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Collections</h2>
+    </div>
+    
     {% if collections_list %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for collection in collections_list %}

@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
-    <h2>Approve Borrow Requests</h2>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Approve Borrow Requests</h2>
+    </div>
     
     {% if borrow_requests %}
         {% for borrow_request in borrow_requests %}
@@ -18,7 +20,7 @@
             </div>
         {% endfor %}
     {% else %}
-        <p>No requests to approve.</p>
+        <p class="lead">No requests to approve.</p>
     {% endif %}
-
+</div>
 {% endblock %}
