@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Complex Item{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Edit Complex Item: {{ item.name }}</h2>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      
+      <div class="mb-3">
+        {{ form.as_p }}
+        {% if item.photo %}
+          <div class="mt-4">
+            <h4>Current Photo</h4>
+            <img src="{{ item.photo.url }}" alt="{{ item.name }}" class="img-thumbnail mt-2" style="max-width: 300px;">
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="mt-4">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{% url 'borrow:manage_items' %}" class="btn btn-secondary ms-2">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
