@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h1>Edit Collection: {{ collection.title }}</h1>
+<div class="container mt-4">
+  <h2>Edit Collection: {{ collection.title }}</h2>
+  {% if messages %}
+    <div class="alert alert-info">
+      {% for message in messages %}
+        {{ message }}
+      {% endfor %}
+    </div>
+  {% endif %}
+  
   <form method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}
@@ -38,4 +47,5 @@
     <button type="submit">Save Changes</button>
   </form>
   <a href="{% url 'borrow:manage_collections' %}">Back to Manage Collections</a>
+</div>
 {% endblock %}

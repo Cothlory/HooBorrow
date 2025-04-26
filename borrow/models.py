@@ -256,24 +256,35 @@ class Collections(models.Model):
         return self.allowed_users.filter(pk=user.patron.pk).exists()
 
     def clean(self):
-        if self.is_collection_private:
-            librarian_creator = Librarian.objects.filter(pk=self.creator.pk).first()
-            if not librarian_creator or not librarian_creator.can_add_items:
-                raise ValidationError("Only librarians can create private collections.")
-            
-        if self.pk:
-            for item in self.items_list.all():
-                other_collections = Collections.objects.filter(items_list=item).exclude(pk=self.pk)
-                if self.is_collection_private:
-                    if other_collections.exists():
-                        raise ValidationError(
-                            f"Item '{item.name}' is already in another collection and cannot be added to a private collection."
-                        )
-                else:
-                    if other_collections.filter(is_collection_private=True).exists():
-                        raise ValidationError(
-                            f"Item '{item.name}' is in a private collection and cannot be added to a public collection."
-                        )
+        """
+        Only validate *newly added* items against the private/public-collection rules.
+        This lets you remove items freely even if they were previously in a private collection.
+        """
+        if not self.pk:
+            return
+        
+        orig = Collections.objects.get(pk=self.pk)
+        old_items = set(orig.items_list.all())
+        new_items = set(self.items_list.all()) - old_items
+        for item in new_items:
+            qs = Collections.objects.filter(items_list=item)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+
+            if self.is_collection_private:
+                if qs.exists():
+                    raise ValidationError(
+                        f"Item '{item.name}' is already in another collection "
+                        f"and cannot be added to a private collection."
+                    )
+            else:
+                priv = qs.filter(is_collection_private=True).first()
+                if priv:
+                    raise ValidationError(
+                        f"Item '{item.name}' is in private collection "
+                        f"'{priv.title}' and cannot be added to this public collection."
+                    )
+
         super().clean()
 
     def save(self, *args, **kwargs):
