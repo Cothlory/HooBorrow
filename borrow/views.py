@@ -680,3 +680,38 @@ def manage_items(request):
     return render(request, 'borrow/manage_items.html', {
         'items': items,
     })
+
+@login_required
+def edit_item(request, pk):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        messages.error(request, "You don't have permission to edit items.", extra_tags='current-page')
+        return redirect('home')
+    
+    try:
+        item = SimpleItem.objects.get(pk=pk)
+        form_class = SimpleItemForm
+        template = 'borrow/edit_simple_item.html'
+    except SimpleItem.DoesNotExist:
+        try:
+            item = ComplexItem.objects.get(pk=pk)
+            form_class = ComplexItemForm
+            template = 'borrow/edit_complex_item.html'
+        except ComplexItem.DoesNotExist:
+            messages.error(request, "Item not found.", extra_tags='current-page')
+            return redirect('borrow:manage_items')
+    
+    if request.method == 'POST':
+        form = form_class(request.POST, request.FILES, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Item '{item.name}' has been updated successfully.", extra_tags='current-page')
+            return redirect('borrow:manage_items')
+    else:
+        form = form_class(instance=item)
+    
+    return render(request, template, {
+        'form': form,
+        'item': item,
+    })

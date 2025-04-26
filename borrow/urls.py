@@ -24,4 +24,5 @@ urlpatterns = [
     path('request_collection/<int:pk>/', views.request_collection, name='request_collection'),
     path('approve_collection_requests/', views.approve_collection_requests, name='approve_collection_requests'),
     path('manage-items/', views.manage_items, name='manage_items'),
+    path('edit-item/<int:pk>/', views.edit_item, name='edit_item'),
 ]
