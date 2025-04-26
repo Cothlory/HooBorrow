@@ -129,6 +129,10 @@ SOCIALACCOUNT_PROVIDERS = {
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_ADAPTER = 'main.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'main.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # Don't require email verification
 
 WSGI_APPLICATION = 'HooBorrow.wsgi.application'
 SITE_ID = 1
