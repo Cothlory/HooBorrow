@@ -23,4 +23,5 @@ urlpatterns = [
     path('return_item/<int:borrowed_item_id>/', views.return_item, name='return_item'),
     path('request_collection/<int:pk>/', views.request_collection, name='request_collection'),
     path('approve_collection_requests/', views.approve_collection_requests, name='approve_collection_requests'),
+    path('manage-items/', views.manage_items, name='manage_items'),
 ]

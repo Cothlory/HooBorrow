@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+{% load borrow_extras %}
+
+{% block title %}Manage Items | HooBorrow{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Manage Items</h2>
+    <a href="{% url 'borrow:add_item' %}" class="btn btn-primary">Add New Item</a>
+  </div>
+  
+  {% if items %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Quantity</th>
+            <th>Location</th>
+            <th>Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>
+                {% with ''|center:1 as range %}
+                  {% for choice in item.CATEGORY_CHOICES %}
+                    {% if choice.0 == item.category %}
+                      {{ choice.1 }}
+                    {% endif %}
+                  {% endfor %}
+                {% endwith %}
+              </td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.location }}</td>
+              <td>
+                {% if item|class_name == 'SimpleItem' %}
+                  Simple Item
+                {% elif item|class_name == 'ComplexItem' %}
+                  Complex Item ({{ item.condition }})
+                {% else %}
+                  Unknown
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group">
+                  <a href="{% url 'borrow:detail' item.id %}" class="btn btn-sm btn-info">View</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      No items in the inventory yet. Click "Add New Item" to get started.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
