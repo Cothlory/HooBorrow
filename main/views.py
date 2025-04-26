@@ -23,7 +23,6 @@ def profile_view(request):
             user=request.user,
             email=request.user.email,
             name=request.user.get_full_name(),
-            join_date=timezone.now()
         )
         # Redirect to ensure smooth flow
         return redirect('profile')
