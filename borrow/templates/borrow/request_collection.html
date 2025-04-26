@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<h1>Request to Join {{ collection.name }}</h1>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Request to Join {{ collection.name }}</h2>
+    </div>
 
     {% if user.is_authenticated %}
         <form method="POST">
@@ -14,7 +16,7 @@
         <button type="submit" class="btn btn-primary">Submit</button>
         </form>
     {% else %}
-        <p>You need to be logged in to borrow this item.</p>
+        <p class="leap">You need to be logged in to borrow this item.</p>
     {% endif %}
-
+</div>
 {% endblock %}

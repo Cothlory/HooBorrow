@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Select Item Type to Add</h2>
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Select Item Type to Add</h2>
+  </div>
 
   <form method="post">
     {% csrf_token %}
@@ -15,5 +18,5 @@
     </div>
     <button type="submit" class="btn btn-primary">Next</button>
   </form>
-
+</div>
 {% endblock %}

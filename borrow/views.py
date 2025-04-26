@@ -103,7 +103,7 @@ def borrow_item(request, pk):
         borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
         print(request)
         borrow_request.save()
-        messages.success(request, 'Your borrow request has been sent to the librarian.')
+        messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
 
     return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
@@ -125,7 +125,7 @@ def approve_requests(request):
         try:
             borrow_request = BorrowRequest.objects.get(id=request_id)
         except BorrowRequest.DoesNotExist:
-            messages.error(request, "Borrow request not found.")
+            messages.error(request, "Borrow request not found.", extra_tags='current-page')
             return redirect('borrow:approve_requests')
 
         if action == 'approve':
@@ -143,7 +143,7 @@ def approve_requests(request):
                         complex_item = ComplexItem.objects.get(id=item.id)
                         success = borrow_request.borrower.borrow_complex_item(complex_item)
                     except ComplexItem.DoesNotExist:
-                        messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.")
+                        messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.", extra_tags='current-page')
                         return redirect('borrow:approve_requests')
                 
                 if success:
@@ -151,17 +151,17 @@ def approve_requests(request):
                     borrow_request.status = BorrowRequest.APPROVED
                     borrow_request.save()
 
-                    messages.success(request, f"Request for {borrow_request.quantity} of {item.name} has been approved.")
+                    messages.success(request, f"Request for {borrow_request.quantity} of {item.name} has been approved.", extra_tags='current-page')
                 else:
-                    messages.error(request, f"Item borrowing failed for {borrow_request.item.name}. Please try again.")
+                    messages.error(request, f"Item borrowing failed for {borrow_request.item.name}. Please try again.", extra_tags='current-page')
             except Exception as e:
-                messages.error(request, f"Error occurred while approving the request: {str(e)}")
+                messages.error(request, f"Error occurred while approving the request: {str(e)}", extra_tags='current-page')
                 return redirect('borrow:approve_requests')
 
         elif action == 'reject':
             borrow_request.status = BorrowRequest.REJECTED
             borrow_request.save()
-            messages.error(request, f"Request for {borrow_request.item.name} has been rejected.")
+            messages.error(request, f"Request for {borrow_request.item.name} has been rejected.", extra_tags='current-page')
 
         return redirect('borrow:approve_requests')  # Redirect to the same page to refresh the list
 
@@ -272,7 +272,7 @@ def manage_users(request):
         try:
             patron = Patron.objects.get(user__id=user_id)
         except Patron.DoesNotExist:
-            messages.error(request, "Patron not found.")
+            messages.error(request, "Patron not found.", extra_tags='current-page')
 
         user = patron.user
         name = patron.name
@@ -280,14 +280,14 @@ def manage_users(request):
         
         # Check if the user is already a librarian
         if isinstance(patron, Librarian):
-            messages.error(request, f"{name} is already a librarian.")
+            messages.error(request, f"{name} is already a librarian.", extra_tags='current-page')
         else:
             patron.delete() 
             # Promote patron to librarian
             librarian = Librarian.objects.create(user=user, name=name, email=email)
             librarian.save()
 
-            messages.success(request, f"{patron.name} has been promoted to Librarian.")
+            messages.success(request, f"{patron.name} has been promoted to Librarian.", extra_tags='current-page')
             return redirect('borrow:manage_users')  # Redirect after successful promotion
 
     # If GET request, render the list of users
@@ -341,22 +341,22 @@ def edit_collection(request, pk):
                 if coll.is_collection_private:
                     if existing.exists():
                         errs.append(
-                            f"‘{item.name}’ is already in “{existing.first().title}”; "
-                            "private collections must be disjoint."
+                            f"'{item.name}' is in other collection(s). "
+                            "Remove it from all other collections before adding it to a private collection."
                         )
                 else:
                     priv = existing.filter(is_collection_private=True).first()
                     if priv:
                         errs.append(
-                            f"‘{item.name}’ lives in private “{priv.title}”; "
-                            "public collections cannot include it."
+                            f"'{item.name}' is in private collection “{priv.title}”. "
+                            "Remove it from that collection before adding it to a public collection."
                         )
             if errs:
                 for e in errs:
-                    messages.error(request, e)
+                    messages.error(request, e, extra_tags='current-page')
             else:
                 form.save()
-                messages.success(request, f"Collection '{coll.title}' updated.")
+                messages.success(request, f"Collection '{coll.title}' updated.", extra_tags='current-page')
                 return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(instance=coll,
@@ -384,7 +384,7 @@ def delete_collection(request, pk):
     
     if request.method == "POST":
         collection.delete()
-        messages.success(request, f"Collection '{collection.title}' deleted successfully.")
+        messages.success(request, f"Collection '{collection.title}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_collections")
     
     return render(request, "borrow/confirm_delete_collection.html", {"collection": collection})
@@ -422,11 +422,11 @@ def add_review(request, pk):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        messages.error(request, "Only patrons can review items.")
+        messages.error(request, "Only patrons can review items.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
     borrowed_history = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
     if not borrowed_history:
-        messages.error(request, "You can only review items you've borrowed.")
+        messages.error(request, "You can only review items you've borrowed.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
     existing_review = Review.objects.filter(reviewer=patron, item=item).first()
     
@@ -441,7 +441,7 @@ def add_review(request, pk):
             review.item = item
             review.reviewer = patron
             review.save()
-            messages.success(request, "Your review has been submitted!")
+            messages.success(request, "Your review has been submitted!", extra_tags='current-page')
             return redirect('borrow:detail', pk=pk)
     else:
         if existing_review:
@@ -462,7 +462,7 @@ def my_borrowed_items(request):
         borrowed_items = BorrowedItem.objects.filter(borrower=patron, returned=False)
         return render(request, 'borrow/my_borrowed_items.html', {'borrowed_items': borrowed_items})
     except Patron.DoesNotExist:
-        messages.error(request, "You need to be a patron to see borrowed items.")
+        messages.error(request, "You need to be a patron to see borrowed items.", extra_tags='current-page')
         return redirect('home')
 
 @login_required
@@ -500,7 +500,7 @@ def return_item(request, borrowed_item_id):
         quantity_to_return = int(request.POST.get('quantity', 1))
         
         if quantity_to_return <= 0 or quantity_to_return > borrowed_item.quantity:
-            messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.")
+            messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.", extra_tags='current-page')
             return redirect('borrow:my_borrowed_items' if is_borrower else 'borrow:all_borrowed_items')
         
         item = borrowed_item.item
@@ -521,7 +521,7 @@ def return_item(request, borrowed_item_id):
                     borrowed_item.save()
                     success = True
             except SimpleItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Simple Item.")
+                messages.error(request, f"Item {item.name} not found as a Simple Item.", extra_tags='current-page')
         else: 
             try:
                 complex_item = ComplexItem.objects.get(id=item.id)
@@ -537,12 +537,12 @@ def return_item(request, borrowed_item_id):
                     borrowed_item.save()
                     success = True
             except ComplexItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Complex Item.")
+                messages.error(request, f"Item {item.name} not found as a Complex Item.", extra_tags='current-page')
         
         if success:
-            messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.")
+            messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.", extra_tags='current-page')
         else:
-            messages.error(request, f"Failed to return {item.name}. Please try again.")
+            messages.error(request, f"Failed to return {item.name}. Please try again.", extra_tags='current-page')
         
         if is_borrower:
             return redirect('borrow:my_borrowed_items')
@@ -568,7 +568,7 @@ def approve_collection_requests(request):
         try:
             collection_request = CollectionRequest.objects.get(id=request_id)
         except CollectionRequest.DoesNotExist:
-            messages.error(request, "Collection request not found.")
+            messages.error(request, "Collection request not found.", extra_tags='current-page')
             return redirect('borrow:approve_collection_requests')
 
         if action == 'approve':
@@ -578,15 +578,15 @@ def approve_collection_requests(request):
                 collection.allowed_users.add(user)
                 collection_request.status = CollectionRequest.APPROVED
                 collection_request.save()
-                messages.success(request, "Collection request has been approved.")
+                messages.success(request, "Collection request has been approved.", extra_tags='current-page')
             except Exception as e:
-                messages.error(request, f"Error occurred while approving the request: {str(e)}")
+                messages.error(request, f"Error occurred while approving the request: {str(e)}", extra_tags='current-page')
                 return redirect('borrow:approve_collection_requests')
 
         elif action == 'reject':
             collection_request.status = CollectionRequest.REJECTED
             collection_request.save()
-            messages.error(request, f"Request for {collection_request.collection.title} has been rejected.")
+            messages.error(request, f"Request for {collection_request.collection.title} has been rejected.", extra_tags='current-page')
 
         return redirect('borrow:approve_collection_requests')  # Redirect to the same page to refresh the list
 
@@ -610,7 +610,7 @@ def request_collection(request, pk):
         collection_request = CollectionRequest.objects.create(user=patron, collection=collection, notes=notes, date= timezone.now())
         print(request)
         collection_request.save()
-        messages.success(request, 'Your request to join this collection has been sent to the librarian.')
+        messages.success(request, 'Your request to join this collection has been sent to the librarian.', extra_tags='current-page')
         return redirect('borrow:collection_detail', pk=pk)
 
     return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
@@ -647,14 +647,14 @@ def create_collection(request):
 
             if errs:
                 for e in errs:
-                    messages.error(request, e)
+                    messages.error(request, e, extra_tags='current-page')
             else:
                 coll = form.save(commit=False)
                 if not is_librarian:
                     coll.is_collection_private = False
                 coll.save()
                 form.save_m2m()
-                messages.success(request, f"Collection '{coll.title}' created.")
+                messages.success(request, f"Collection '{coll.title}' created.", extra_tags='current-page')
                 return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(librarian=creator, is_librarian=is_librarian)
