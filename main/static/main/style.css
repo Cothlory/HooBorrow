@@ -65,3 +65,29 @@ footer a {
 .btn-close-white {
     filter: invert(1) grayscale(100%) brightness(200%);
 }
+
+.btn-google {
+    color: #fff;
+    background-color: #4285f4;
+    border-color: #4285f4;
+    padding: 10px 16px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.btn-google:hover, .btn-google:focus {
+    background-color: #3367d6;
+    border-color: #3367d6;
+    color: #fff;
+}
+
+.btn-google svg {
+    background: white;
+    border-radius: 2px;
+    margin-right: 10px;
+    padding: 1px;
+}
