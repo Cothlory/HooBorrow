@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Collection | HooBorrow{% endblock %}
+{% block content %}
+  <h1>Create New Collection</h1>
+  
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <p>
+      {{ form.title.label_tag }}<br>
+      {{ form.title }}
+    </p>
+    <p>
+      {{ form.description.label_tag }}<br>
+      {{ form.description }}
+    </p>
+    <p>
+      {{ form.items_list.label_tag }}<br>
+      {{ form.items_list }}
+    </p>
+    {% if is_librarian %}
+      <p>
+        {{ form.is_collection_private.label_tag }}
+        {{ form.is_collection_private }}
+      </p>
+    {% endif %}
+    <div id="allowed_users_div">
+      <p>
+        {{ form.allowed_users.label_tag }}<br>
+        {{ form.allowed_users }}
+      </p>
+    </div>
+    <button type="submit" class="btn btn-primary">Create Collection</button>
+    <a href="{% url 'borrow:manage_collections' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+
+  {% if is_librarian %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        var isPrivateCheckbox = document.getElementById('id_is_collection_private');
+        var allowedUsersDiv = document.getElementById('allowed_users_div');
+        function toggleAllowedUsers(){
+          if(isPrivateCheckbox.checked){
+            allowedUsersDiv.style.display = '';
+          } else {
+            allowedUsersDiv.style.display = 'none';
+          }
+        }
+        isPrivateCheckbox.addEventListener('change', toggleAllowedUsers);
+        toggleAllowedUsers();
+      });
+    </script>
+  {% else %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        var allowedUsersDiv = document.getElementById('allowed_users_div');
+        if(allowedUsersDiv){
+          allowedUsersDiv.style.display = 'none';
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock %}
