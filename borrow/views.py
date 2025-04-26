@@ -663,4 +663,20 @@ def create_collection(request):
         'form': form,
         'is_librarian': is_librarian,
     })
+
+@login_required
+def manage_items(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        messages.error(request, "You don't have permission to manage items.", extra_tags='current-page')
+        return redirect('home')
+
+    simple_items = SimpleItem.objects.all()
+    complex_items = ComplexItem.objects.all()
+    items = list(simple_items) + list(complex_items)
+    items.sort(key=lambda x: x.name)
     
+    return render(request, 'borrow/manage_items.html', {
+        'items': items,
+    })
