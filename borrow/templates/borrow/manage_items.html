@@ -50,7 +50,8 @@
               </td>
               <td>
                 <div class="btn-group">
-                  <a href="{% url 'borrow:detail' item.id %}" class="btn btn-sm btn-info">View</a>
+                  <a href="{% url 'borrow:detail' item.id %}" class="btn btn-sm btn-info me-1">View</a>
+                  <a href="{% url 'borrow:edit_item' item.id %}" class="btn btn-sm btn-warning">Edit</a>
                 </div>
               </td>
             </tr>
