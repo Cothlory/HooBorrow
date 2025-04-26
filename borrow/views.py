@@ -302,19 +302,6 @@ def manage_collections(request):
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
-    if request.method == "POST":
-        form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
-        if form.is_valid():
-            collection = form.save(commit=False)
-            if not is_librarian:
-                collection.is_collection_private = False
-            collection.save()
-            form.save_m2m()
-            messages.success(request, f"Collection '{collection.title}' created.")
-            return redirect('borrow:manage_collections')
-    else:
-        form = CollectionForm(librarian=creator, is_librarian=is_librarian)
     
     if is_librarian:
         collections = Collections.objects.all().order_by("title")
@@ -322,7 +309,6 @@ def manage_collections(request):
         collections = Collections.objects.filter(creator=creator).order_by("title")
     
     return render(request, 'borrow/manage_collections.html', {
-        'form': form,
         'collections': collections,
         'is_librarian': is_librarian,
     })
@@ -599,3 +585,31 @@ def request_collection(request, pk):
         return redirect('borrow:collection_detail', pk=pk)
 
     return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
+
+@login_required
+def create_collection(request):
+    try:
+        creator = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+        is_librarian = False
+
+    if request.method == "POST":
+        form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
+        if form.is_valid():
+            collection = form.save(commit=False)
+            if not is_librarian:
+                collection.is_collection_private = False
+            collection.save()
+            form.save_m2m()
+            messages.success(request, f"Collection '{collection.title}' created.")
+            return redirect('borrow:manage_collections')
+    else:
+        form = CollectionForm(librarian=creator, is_librarian=is_librarian)
+    
+    return render(request, 'borrow/create_collection.html', {
+        'form': form,
+        'is_librarian': is_librarian,
+    })
+    
