@@ -86,7 +86,7 @@ class Patron(models.Model):
     name = models.CharField(max_length=200)
     email = models.CharField(max_length=200)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
-
+    
     def borrow_simple_item(self, simple_item, quantity, days_to_return=7):
         if simple_item.quantity >= quantity: 
             due_date = timezone.now() + timedelta(days=days_to_return)
