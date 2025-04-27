@@ -42,7 +42,9 @@
           {% if user.is_authenticated %}
             <!-- Item and Collection Management - For all authenticated users -->
             <li class="nav-item"><a class="nav-link" href="{% url 'borrow:my_borrowed_items' %}">Borrowed Items</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_collections' %}">Collections</a></li>
+            {% if not user|is_librarian %}
+              <li class="nav-item"><a class="nav-link" href="{% url 'borrow:manage_collections' %}">Collections</a></li>
+            {% endif %}
 
             <!-- Librarian Management Group - Only for librarians -->
             {% if user|is_librarian %}
@@ -51,10 +53,11 @@
                   Inventory Management
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="inventoryDropdown">
-                  <li><a class="dropdown-item" href="{% url 'borrow:manage_items' %}">Manage Items</a></li>
+                  <li><a class="dropdown-item" href="{% url 'borrow:all_borrowed_items' %}">Manage Borrowed Items</a></li>
+                  <li><a class="dropdown-item" href="{% url 'borrow:manage_items' %}">Manage All Items</a></li>
+                  <li><a class="dropdown-item" href="{% url 'borrow:manage_collections' %}">Manage Collections</a></li>
                   <li><a class="dropdown-item" href="{% url 'borrow:approve_requests' %}">Approve Borrow Requests</a></li>
                   <li><a class="dropdown-item" href="{% url 'borrow:approve_collection_requests' %}">Approve Collection Requests</a></li>
-                  <li><a class="dropdown-item" href="{% url 'borrow:all_borrowed_items' %}">All Borrowed Items</a></li>
                 </ul>
               </li>
 
