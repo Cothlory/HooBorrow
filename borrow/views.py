@@ -332,13 +332,15 @@ def manage_collections(request):
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
     
-    if is_librarian:
-        collections = Collections.objects.all().order_by("title")
-    else:
-        collections = Collections.objects.filter(creator=creator).order_by("title")
-    
+    my_collections = []
+    joined_collections = []
+
+    my_collections = Collections.objects.filter(creator=creator).order_by("title")
+    joined_collections = Collections.objects.filter(allowed_users=creator).order_by("title")
+
     return render(request, 'borrow/manage_collections.html', {
-        'collections': collections,
+        'my_collections': my_collections,
+        'joined_collections': joined_collections,
         'is_librarian': is_librarian,
     })
 
@@ -644,7 +646,7 @@ def request_collection(request, pk):
         return redirect('borrow:collection_detail', pk=pk)
 
     return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
-
+    
 @login_required
 def create_collection(request):
     try:
@@ -653,7 +655,7 @@ def create_collection(request):
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
+    
     if request.method == "POST":
         form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
         if form.is_valid():
@@ -663,18 +665,12 @@ def create_collection(request):
                 existing = Collections.objects.filter(items_list=item)
                 if form.cleaned_data.get('is_collection_private'):
                     if existing.exists():
-                        errs.append(
-                            f"‘{item.name}’ is already in “{existing.first().title}”; "
-                            "private collections must be disjoint."
-                        )
+                        errs.append(f"'{item.name}' is already in '{existing.first().title}'; private collections must be disjoint.")
                 else:
                     priv = existing.filter(is_collection_private=True).first()
                     if priv:
-                        errs.append(
-                            f"‘{item.name}’ lives in private “{priv.title}”; "
-                            "public collections cannot include it."
-                        )
-
+                        errs.append(f"'{item.name}' lives in private '{priv.title}'; public collections cannot include it.")
+            
             if errs:
                 for e in errs:
                     messages.error(request, e, extra_tags='current-page')
@@ -684,16 +680,30 @@ def create_collection(request):
                     coll.is_collection_private = False
                 coll.save()
                 form.save_m2m()
+                
+                if coll.is_collection_private: 
+                    # Get all users who are librarians
+                    librarian_users = Librarian.objects.all()
+                    # Add all librarian patrons to the collection's allowed_users
+                    coll.allowed_users.add(*librarian_users)
+                    coll.allowed_users.add(creator)
+                else:
+                    patron_users = Patron.objects.all()
+                    coll.allowed_users.add(*patron_users)
+                    coll.allowed_users.add(creator)
+                    
+                
                 messages.success(request, f"Collection '{coll.title}' created.", extra_tags='current-page')
                 return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(librarian=creator, is_librarian=is_librarian)
-
+    
     return render(request, 'borrow/create_collection.html', {
         'form': form,
         'is_librarian': is_librarian,
     })
 
+    
 @login_required
 def manage_items(request):
     try:
