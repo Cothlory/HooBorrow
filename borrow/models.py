@@ -23,6 +23,7 @@ class Item(models.Model):
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
+    days_to_return = models.IntegerField(default=7)
 
     category = models.CharField(
         max_length=10,
