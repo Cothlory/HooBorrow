@@ -1,46 +1,396 @@
 {% extends "base.html" %}
 
+{% block title %}Edit Collection | HooBorrow{% endblock %}
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Edit Collection: {{ collection.title }}</h2>
   </div>
   
-  <form method="post">
+  <form method="post" id="collection-form">
     {% csrf_token %}
     {% if form.non_field_errors %}
       <div class="alert alert-danger">
         {{ form.non_field_errors }}
       </div>
     {% endif %}
-    <p>
-      {{ form.title.label_tag }}<br>
+    
+    <div class="mb-3">
+      <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
       {{ form.title }}
-    </p>
-    <p>
-      {{ form.description.label_tag }}<br>
+      {% if form.title.errors %}
+        <div class="text-danger">{{ form.title.errors }}</div>
+      {% endif %}
+    </div>
+    
+    <div class="mb-3">
+      <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
       {{ form.description }}
-    </p>
-    <p>
-      {{ form.items_list.label_tag }}<br>
-      {{ form.items_list }}
-    </p>
-    <p>
+      {% if form.description.errors %}
+        <div class="text-danger">{{ form.description.errors }}</div>
+      {% endif %}
+    </div>
+    
+    <!-- Items Selection -->
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label mb-0">Items</label>
+        <button type="button" id="browse-items-btn" class="btn btn-outline-primary">Browse</button>
+      </div>
+      
+      <div id="selected-items" class="list-group mb-2" style="max-width: 50%;">
+        <!-- Selected items will appear here -->
+      </div>
+      <!-- Hidden input to store the selected item IDs -->
+      <div id="items-container" style="display: none;">
+        {{ form.items_list }}
+      </div>
+    </div>
+    
+    <div class="mb-3">
       <strong>Visibility:</strong>
       {% if collection.is_collection_private %}
-        Private
+        <span class="badge bg-warning text-dark">Private</span>
       {% else %}
-        Public
+        <span class="badge bg-success">Public</span>
       {% endif %}
-    </p>
+    </div>
+    
+    <!-- Users Selection (for private collections) -->
     {% if collection.is_collection_private and form.allowed_users %}
-      <p>
-        {{ form.allowed_users.label_tag }}<br>
-        {{ form.allowed_users }}
-      </p>
+      <div class="mb-3" id="allowed-users-section">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label mb-0">Allowed Users</label>
+          <button type="button" id="browse-users-btn" class="btn btn-primary">Browse</button>
+        </div>
+        
+        <div id="selected-users" class="list-group mb-2" style="max-width: 50%;">
+          <!-- Selected users will appear here -->
+        </div>
+        <!-- Hidden input to store the selected user IDs -->
+        <div id="users-container" style="display: none;">
+          {{ form.allowed_users }}
+        </div>
+      </div>
     {% endif %}
-    <button type="submit">Save Changes</button>
+    
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{% url 'borrow:manage_collections' %}" class="btn btn-secondary">Cancel</a>
   </form>
-  <a href="{% url 'borrow:manage_collections' %}">Back to Manage Collections</a>
+
+  <!-- Item Search Modal -->
+  <div class="modal fade" id="itemSearchModal" tabindex="-1" aria-labelledby="itemSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="itemSearchModalLabel">Browse Items</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="modal-item-search" class="form-control mb-3" placeholder="Type to search...">
+          <div id="item-search-results" class="list-group">
+            <!-- Search results will appear here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Search Modal -->
+  <div class="modal fade" id="userSearchModal" tabindex="-1" aria-labelledby="userSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userSearchModalLabel">Browse Users</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="modal-user-search" class="form-control mb-3" placeholder="Type to search...">
+          <div id="user-search-results" class="list-group">
+            <!-- Search results will appear here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Hide the default form widgets
+      document.querySelectorAll('#items-container .form-check').forEach(el => {
+        el.style.display = 'none';
+      });
+      
+      if (document.getElementById('users-container')) {
+        document.querySelectorAll('#users-container .form-check').forEach(el => {
+          el.style.display = 'none';
+        });
+      }
+      
+      const modalItemSearch = document.getElementById('modal-item-search');
+      const selectedItemsContainer = document.getElementById('selected-items');
+      const itemsContainer = document.getElementById('items-container');
+      
+      let modalUserSearch, selectedUsersContainer, usersContainer;
+      
+      if (document.getElementById('allowed-users-section')) {
+        modalUserSearch = document.getElementById('modal-user-search');
+        selectedUsersContainer = document.getElementById('selected-users');
+        usersContainer = document.getElementById('users-container');
+      }
+      
+      // Item search and selection
+      const itemModal = new bootstrap.Modal(document.getElementById('itemSearchModal'));
+      document.getElementById('browse-items-btn').addEventListener('click', function() {
+        modalItemSearch.value = '';
+        searchItems(''); // Show all items initially
+        itemModal.show();
+      });
+      
+      modalItemSearch.addEventListener('input', function() {
+        searchItems(this.value);
+      });
+      
+      function searchItems(query) {
+        // Simulate a search through the existing checkboxes
+        const results = document.getElementById('item-search-results');
+        results.innerHTML = '';
+        
+        const itemCheckboxes = itemsContainer.querySelectorAll('input[type="checkbox"]');
+        itemCheckboxes.forEach(checkbox => {
+          const label = itemsContainer.querySelector(`label[for="${checkbox.id}"]`);
+          if (label && (query === '' || label.textContent.toLowerCase().includes(query.toLowerCase()))) {
+            const resultItem = document.createElement('a');
+            resultItem.href = '#';
+            resultItem.className = 'list-group-item list-group-item-action';
+            resultItem.textContent = label.textContent;
+            resultItem.dataset.itemId = checkbox.value;
+            resultItem.dataset.itemName = label.textContent;
+            
+            // Check if already selected and add visual indicator
+            if (checkbox.checked) {
+              resultItem.classList.add('active');
+              resultItem.innerHTML += '<span class="float-end">✓</span>';
+            }
+            
+            // Add click event to select this item
+            resultItem.addEventListener('click', function(e) {
+              e.preventDefault();
+              
+              // Toggle selection
+              const isSelected = document.querySelector(`#selected-items [data-item-id="${this.dataset.itemId}"]`);
+              if (isSelected) {
+                // If already selected, remove it
+                const checkbox = document.querySelector(`#items-container input[value="${this.dataset.itemId}"]`);
+                if (checkbox) {
+                  checkbox.checked = false;
+                }
+                isSelected.remove();
+                this.classList.remove('active');
+                this.querySelector('.float-end')?.remove();
+              } else {
+                // Otherwise add it
+                selectItem(this.dataset.itemId, this.dataset.itemName);
+                this.classList.add('active');
+                if (!this.querySelector('.float-end')) {
+                  this.innerHTML += '<span class="float-end">✓</span>';
+                }
+              }
+            });
+            
+            results.appendChild(resultItem);
+          }
+        });
+        
+        if (results.children.length === 0) {
+          const noResults = document.createElement('div');
+          noResults.className = 'list-group-item text-muted';
+          noResults.textContent = 'No items found';
+          results.appendChild(noResults);
+        }
+      }
+      
+      function selectItem(itemId, itemName) {
+        // Check if item is already selected
+        if (document.querySelector(`#selected-items [data-item-id="${itemId}"]`)) {
+          return;
+        }
+        
+        // Check the corresponding checkbox
+        const checkbox = document.querySelector(`#items-container input[value="${itemId}"]`);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
+        
+        // Add to the visual selection
+        const itemElement = document.createElement('div');
+        itemElement.className = 'list-group-item d-flex justify-content-between align-items-center';
+        itemElement.dataset.itemId = itemId;
+        
+        itemElement.innerHTML = `
+          <span>${itemName}</span>
+          <button type="button" class="btn-close remove-item" aria-label="Remove"></button>
+        `;
+        
+        itemElement.querySelector('.remove-item').addEventListener('click', function() {
+          // Uncheck the corresponding checkbox
+          const checkbox = document.querySelector(`#items-container input[value="${itemId}"]`);
+          if (checkbox) {
+            checkbox.checked = false;
+          }
+          
+          // Update modal item if it's visible
+          const modalItem = document.querySelector(`#item-search-results [data-item-id="${itemId}"]`);
+          if (modalItem) {
+            modalItem.classList.remove('active');
+            modalItem.querySelector('.float-end')?.remove();
+          }
+          
+          // Remove from visual selection
+          itemElement.remove();
+        });
+        
+        selectedItemsContainer.appendChild(itemElement);
+      }
+      
+      // User search and selection (only if in a private collection)
+      if (document.getElementById('allowed-users-section')) {
+        const userModal = new bootstrap.Modal(document.getElementById('userSearchModal'));
+        document.getElementById('browse-users-btn').addEventListener('click', function() {
+          modalUserSearch.value = '';
+          searchUsers(''); // Show all users initially
+          userModal.show();
+        });
+        
+        modalUserSearch.addEventListener('input', function() {
+          searchUsers(this.value);
+        });
+        
+        function searchUsers(query) {
+          // Simulate a search through the existing checkboxes
+          const results = document.getElementById('user-search-results');
+          results.innerHTML = '';
+          
+          const userCheckboxes = usersContainer.querySelectorAll('input[type="checkbox"]');
+          userCheckboxes.forEach(checkbox => {
+            const label = usersContainer.querySelector(`label[for="${checkbox.id}"]`);
+            if (label && (query === '' || label.textContent.toLowerCase().includes(query.toLowerCase()))) {
+              const resultItem = document.createElement('a');
+              resultItem.href = '#';
+              resultItem.className = 'list-group-item list-group-item-action';
+              resultItem.textContent = label.textContent;
+              resultItem.dataset.userId = checkbox.value;
+              resultItem.dataset.userName = label.textContent;
+              
+              // Check if already selected and add visual indicator
+              if (checkbox.checked) {
+                resultItem.classList.add('active');
+                resultItem.innerHTML += '<span class="float-end">✓</span>';
+              }
+              
+              // Add click event to select this user
+              resultItem.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Toggle selection
+                const isSelected = document.querySelector(`#selected-users [data-user-id="${this.dataset.userId}"]`);
+                if (isSelected) {
+                  // If already selected, remove it
+                  const checkbox = document.querySelector(`#users-container input[value="${this.dataset.userId}"]`);
+                  if (checkbox) {
+                    checkbox.checked = false;
+                  }
+                  isSelected.remove();
+                  this.classList.remove('active');
+                  this.querySelector('.float-end')?.remove();
+                } else {
+                  // Otherwise add it
+                  selectUser(this.dataset.userId, this.dataset.userName);
+                  this.classList.add('active');
+                  if (!this.querySelector('.float-end')) {
+                    this.innerHTML += '<span class="float-end">✓</span>';
+                  }
+                }
+              });
+              
+              results.appendChild(resultItem);
+            }
+          });
+          
+          if (results.children.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'list-group-item text-muted';
+            noResults.textContent = 'No users found';
+            results.appendChild(noResults);
+          }
+        }
+        
+        function selectUser(userId, userName) {
+          // Check if user is already selected
+          if (document.querySelector(`#selected-users [data-user-id="${userId}"]`)) {
+            return;
+          }
+          
+          // Check the corresponding checkbox
+          const checkbox = document.querySelector(`#users-container input[value="${userId}"]`);
+          if (checkbox) {
+            checkbox.checked = true;
+          }
+          
+          // Add to the visual selection
+          const userElement = document.createElement('div');
+          userElement.className = 'list-group-item d-flex justify-content-between align-items-center';
+          userElement.dataset.userId = userId;
+          
+          userElement.innerHTML = `
+            <span>${userName}</span>
+            <button type="button" class="btn-close remove-user" aria-label="Remove"></button>
+          `;
+          
+          userElement.querySelector('.remove-user').addEventListener('click', function() {
+            // Uncheck the corresponding checkbox
+            const checkbox = document.querySelector(`#users-container input[value="${userId}"]`);
+            if (checkbox) {
+              checkbox.checked = false;
+            }
+            
+            // Update modal user if it's visible
+            const modalUser = document.querySelector(`#user-search-results [data-user-id="${userId}"]`);
+            if (modalUser) {
+              modalUser.classList.remove('active');
+              modalUser.querySelector('.float-end')?.remove();
+            }
+            
+            // Remove from visual selection
+            userElement.remove();
+          });
+          
+          selectedUsersContainer.appendChild(userElement);
+        }
+        
+        // Pre-select users that are already selected in the form
+        document.querySelectorAll('#users-container input[type="checkbox"]:checked').forEach(checkbox => {
+          const label = document.querySelector(`label[for="${checkbox.id}"]`);
+          if (label) {
+            selectUser(checkbox.value, label.textContent);
+          }
+        });
+      }
+      
+      // Pre-select items that are already selected in the form
+      document.querySelectorAll('#items-container input[type="checkbox"]:checked').forEach(checkbox => {
+        const label = document.querySelector(`label[for="${checkbox.id}"]`);
+        if (label) {
+          selectItem(checkbox.value, label.textContent);
+        }
+      });
+    });
+  </script>
 </div>
 {% endblock %}
