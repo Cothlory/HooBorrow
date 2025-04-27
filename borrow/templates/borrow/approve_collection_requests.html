@@ -10,6 +10,7 @@
         {% for collection_request in collection_requests %}
             <div>
                 <p>{{ collection_request.user.name }} requested to join {{ collection_request.collection.title }}</p>
+                <p> Reason to Join: {{ collection_request.notes }} </p>
                 
                 <form method="POST">
                     {% csrf_token %}
