@@ -162,29 +162,23 @@ def approve_requests(request):
         if action == 'approve':
             try: 
                 item = borrow_request.item
-                success = False
-
-                try:
-                    # Try to get the item as a SimpleItem
-                    simple_item = SimpleItem.objects.get(id=item.id)
-                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity)
-                except SimpleItem.DoesNotExist:
-                    # If it's not a SimpleItem, try ComplexItem
-                    try:
-                        complex_item = ComplexItem.objects.get(id=item.id)
-                        success = borrow_request.borrower.borrow_complex_item(complex_item)
-                    except ComplexItem.DoesNotExist:
-                        messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.", extra_tags='current-page')
-                        return redirect('borrow:approve_requests')
+                # Determine whether it's a simple or complex item based on attributes
+                # rather than class type
+                is_complex = hasattr(item, 'condition')
+                
+                # Use the patron's generic borrow_item method which works with any Item
+                success = borrow_request.borrower.borrow_item(
+                    item=item, 
+                    quantity=borrow_request.quantity
+                )
                 
                 if success:
                     # Mark the BorrowRequest as approved
                     borrow_request.status = BorrowRequest.APPROVED
                     borrow_request.save()
-
                     messages.success(request, f"Request for {borrow_request.quantity} of {item.name} has been approved.", extra_tags='current-page')
                 else:
-                    messages.error(request, f"Item borrowing failed for {borrow_request.item.name}. Please try again.", extra_tags='current-page')
+                    messages.error(request, f"Item borrowing failed for {item.name}. Please check the available quantity.", extra_tags='current-page')
             except Exception as e:
                 messages.error(request, f"Error occurred while approving the request: {str(e)}", extra_tags='current-page')
                 return redirect('borrow:approve_requests')
@@ -370,12 +364,14 @@ def edit_collection(request, pk):
             items_to_remove = []
             for item in collection.items_list:
                 item_id = item.id
-                if f"remove_item_{item_id}" in request.POST:
+                remove_key = f"remove_item_{item_id}"
+                if remove_key in request.POST and request.POST.get(remove_key) == "1":
                     items_to_remove.append(item)
             
             for item in items_to_remove:
                 try:
                     collection.remove_item(item)
+                    messages.success(request, f"Removed {item.name} from collection", extra_tags='current-page')
                 except ValueError as e:
                     messages.error(request, str(e), extra_tags='current-page')
             
@@ -389,6 +385,7 @@ def edit_collection(request, pk):
                         original_item = Item.objects.get(id=item_id, is_original=True)
                         if quantity > 0 and quantity <= original_item.quantity:
                             collection.add_item(original_item, quantity)
+                            messages.success(request, f"Added {quantity} of {original_item.name} to collection", extra_tags='current-page')
                         else:
                             messages.error(request, 
                                 f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
@@ -416,20 +413,40 @@ def delete_collection(request, pk):
         librarian = Librarian.objects.get(user=request.user)
         is_librarian = True
     except Librarian.DoesNotExist:
-        creator = Patron.objects.get(user=request.user)
         is_librarian = False
-    
+        creator = Patron.objects.get(user=request.user)
+
     if is_librarian:
         collection = get_object_or_404(Collections, pk=pk)
     else:
         collection = get_object_or_404(Collections, pk=pk, creator=creator)
-    
-    if request.method == "POST":
-        collection_title = collection.title
+
+    if request.method == 'POST':
+        # Return all items to their original inventory
+        returned_items = collection.return_all_items()
+        
+        # Log what happened
+        for item in returned_items:
+            messages.info(
+                request,
+                f"Returned {item['quantity']} of '{item['name']}' to original inventory",
+                extra_tags='current-page'
+            )
+        
+        # Now delete the collection
+        collection_name = collection.title
         collection.delete()
-        messages.success(request, f"Collection '{collection_title}' deleted successfully.", extra_tags='current-page')
-        return redirect("borrow:manage_collections")
-    return redirect("borrow:manage_collections")
+        
+        messages.success(
+            request,
+            f"Collection '{collection_name}' deleted successfully",
+            extra_tags='current-page'
+        )
+        return redirect('borrow:manage_collections')
+    
+    return render(request, 'borrow/delete_collection_confirm.html', {
+        'collection': collection
+    })
 
 class CollectionDetailView(generic.DetailView):
     model = Collections
@@ -630,47 +647,51 @@ def request_collection(request, pk):
 @login_required
 def create_collection(request):
     try:
-        creator = Librarian.objects.get(user=request.user)
+        librarian = Librarian.objects.get(user=request.user)
         is_librarian = True
     except Librarian.DoesNotExist:
-        creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
-    if request.method == "POST":
-        form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
+        patron = Patron.objects.get(user=request.user)
+    
+    if request.method == 'POST':
+        form = CollectionForm(request.POST, 
+                          librarian=librarian if is_librarian else patron,
+                          is_librarian=is_librarian)
         if form.is_valid():
-            new_items = list(form.cleaned_data['items_list'])
-            errs = []
-            for item in new_items:
-                existing = Collections.objects.filter(items_list=item)
-                if form.cleaned_data.get('is_collection_private'):
-                    if existing.exists():
-                        errs.append(
-                            f"‘{item.name}’ is already in “{existing.first().title}”; "
-                            "private collections must be disjoint."
-                        )
-                else:
-                    priv = existing.filter(is_collection_private=True).first()
-                    if priv:
-                        errs.append(
-                            f"‘{item.name}’ lives in private “{priv.title}”; "
-                            "public collections cannot include it."
-                        )
-
-            if errs:
-                for e in errs:
-                    messages.error(request, e, extra_tags='current-page')
-            else:
-                coll = form.save(commit=False)
-                if not is_librarian:
-                    coll.is_collection_private = False
-                coll.save()
-                form.save_m2m()
-                messages.success(request, f"Collection '{coll.title}' created.", extra_tags='current-page')
-                return redirect('borrow:manage_collections')
+            collection = form.save()
+            
+            # Handle new items - they are submitted as hidden inputs with names like "new_item_[id]"
+            for key, value in request.POST.items():
+                if key.startswith('new_item_'):
+                    item_id = int(key.replace('new_item_', ''))
+                    quantity = int(value)
+                    
+                    try:
+                        # Get the original item
+                        original_item = Item.objects.get(id=item_id, is_original=True)
+                        
+                        # Check if quantity is valid
+                        if quantity > 0 and quantity <= original_item.quantity:
+                            # Add item to collection
+                            collection.add_item(original_item, quantity)
+                            messages.success(request, 
+                                f"Added {quantity} of {original_item.name} to collection",
+                                extra_tags='current-page')
+                        else:
+                            messages.error(request, 
+                                f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
+                                extra_tags='current-page')
+                    except Item.DoesNotExist:
+                        messages.error(request, f"Item not found", extra_tags='current-page')
+                    except ValueError as e:
+                        messages.error(request, str(e), extra_tags='current-page')
+            
+            messages.success(request, f"Collection '{collection.title}' created successfully.", extra_tags='current-page')
+            return redirect('borrow:manage_collections')
     else:
-        form = CollectionForm(librarian=creator, is_librarian=is_librarian)
-
+        form = CollectionForm(librarian=librarian if is_librarian else patron,
+                          is_librarian=is_librarian)
+    
     return render(request, 'borrow/create_collection.html', {
         'form': form,
         'is_librarian': is_librarian,
@@ -748,6 +769,31 @@ def search_items(request):
             'name': item.name,
             'quantity': item.quantity,
             'available_quantity': item.quantity,  # For original items, all quantity is available
+        })
+    
+    return JsonResponse(results, safe=False)
+
+def search_users(request):
+    """API endpoint to search for users that can be added to collections"""
+    query = request.GET.get('q', '')
+    
+    # Only librarians should access this
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+    
+    # Search for patrons matching the query
+    patrons = Patron.objects.filter(
+        Q(name__icontains=query) | Q(email__icontains=query)
+    )[:20]  # Limit results
+    
+    results = []
+    for patron in patrons:
+        results.append({
+            'id': patron.id,
+            'name': patron.name,
+            'email': patron.email,
         })
     
     return JsonResponse(results, safe=False)

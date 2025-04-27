@@ -8,6 +8,8 @@ def can_view(item, user):
 
 @register.filter
 def can_view_collection(collection, user):
+    if collection is None:
+        return False
     return collection.can_view(user)
 
 @register.filter

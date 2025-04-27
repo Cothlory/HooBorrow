@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load borrow_extras %}
 
 <link rel="stylesheet" href="{% static 'borrow/detail.css' %}">
 
@@ -21,15 +22,25 @@
     
     <p>
       <strong>Collections:</strong>
-      {% with collections=object.collections.all %}
-        {% if collections %}
-          {% for collection in collections %}
-            {{ collection.title }}{% if not forloop.last %}, {% endif %}
-          {% endfor %}
-        {% else %}
-          None
-        {% endif %}
-      {% endwith %}
+      {% if object.is_original %}
+          {% with item_collections=object.collections %}
+              {% if item_collections %}
+                  {% for collection in item_collections %}
+                      {% if collection|can_view:request.user %}
+                          <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                      {% endif %}
+                  {% endfor %}
+              {% else %}
+                  None
+              {% endif %}
+          {% endwith %}
+      {% else %}
+          {% if object.collection and object.collection|can_view:request.user %}
+              <a href="{% url 'borrow:collection_detail' object.collection.id %}">{{ object.collection.title }}</a>
+          {% else %}
+              None
+          {% endif %}
+      {% endif %}
     </p>
     <input type="hidden" name="is_private" value="{{ object.is_in_private_collection }}">
 

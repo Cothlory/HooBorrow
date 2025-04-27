@@ -330,9 +330,15 @@ class Collections(models.Model):
             original.quantity += copy_item.quantity
             original.save()
         
+        # Store quantity for feedback message
+        quantity = copy_item.quantity
+        name = copy_item.name
+        
         # Delete the copy
         copy_item.delete()
-            
+        
+        return f"Returned {quantity} of {name} to original inventory"
+
     def can_view(self, user):
         if not self.is_collection_private:
             return True
@@ -341,13 +347,46 @@ class Collections(models.Model):
             return False
             
         from .models import Librarian
-        if Librarian.objects.filter(user=user).exists():
-            return True
+        try:
+            if Librarian.objects.filter(user=user).exists():
+                return True
+                
+            # Check if user is the creator
+            if hasattr(user, 'patron') and self.creator == user.patron:
+                return True
+                
+            # Check if user is in allowed_users
+            if hasattr(user, 'patron') and self.allowed_users.filter(pk=user.patron.pk).exists():
+                return True
+        except:
+            pass
             
-        return self.allowed_users.filter(pk=user.patron.pk).exists()
+        return False
 
     def __str__(self):
         return self.title
+
+    def return_all_items(self):
+        """Return all items in this collection to their original inventory"""
+        returned_items = []
+        
+        for copy_item in self.collection_items.all():
+            if copy_item.original_item and not copy_item.is_original:
+                # Add quantity back to original
+                original_item = copy_item.original_item
+                original_item.quantity += copy_item.quantity
+                original_item.save()
+                
+                returned_items.append({
+                    'name': copy_item.name,
+                    'quantity': copy_item.quantity
+                })
+                
+                # Delete the copy item explicitly
+                copy_item.delete()
+    
+        return returned_items
+
 
 class CollectionRequest(models.Model): 
     PENDING = 'PENDING'

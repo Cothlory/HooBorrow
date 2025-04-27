@@ -17,9 +17,6 @@
         </p>
     </div>
     
-    
-    
-    
     {% if object.is_collection_private and request.user.patron != object.creator and request.user.patron not in object.allowed_users.all and not request.user.is_librarian %}
         <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
     {% endif %}

@@ -26,4 +26,5 @@ urlpatterns = [
     path('manage-items/', views.manage_items, name='manage_items'),
     path('edit-item/<int:pk>/', views.edit_item, name='edit_item'),
     path('api/items/search/', views.search_items, name='api_search_items'),
+    path('api/users/search/', views.search_users, name='api_search_users'),
 ]

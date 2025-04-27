@@ -48,17 +48,25 @@
                                 <p class="card-text">Location: {{ item.location }}</p>
                                 <p class="card-text">
                                     <strong>Collections:</strong>
-                                    {% with item_collections=item.collections.all %}
-                                        {% if item_collections %}
-                                            {% for collection in item_collections %}
-                                                {% if collection|can_view_collection:request.user %}
-                                                    <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
-                                                {% endif %}
-                                            {% endfor %}
+                                    {% if item.is_original %}
+                                        {% with item_collections=item.collections %}
+                                            {% if item_collections %}
+                                                {% for collection in item_collections %}
+                                                    {% if collection|can_view:request.user %}
+                                                        <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">Not in collection</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% else %}
+                                        {% if item.collection and item.collection|can_view:request.user %}
+                                            <a href="{% url 'borrow:collection_detail' item.collection.id %}">{{ item.collection.title }}</a>
                                         {% else %}
-                                            <span class="text-muted">Not in collection</span>
+                                            <span class="text-muted">Not in viewable collection</span>
                                         {% endif %}
-                                    {% endwith %}
+                                    {% endif %}
                                 </p>
                             </div>
                             <div class="card-footer text-center">
