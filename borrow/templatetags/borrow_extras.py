@@ -9,3 +9,8 @@ def can_view(item, user):
 @register.filter
 def can_view_collection(collection, user):
     return collection.can_view(user)
+
+@register.filter
+def class_name(obj):
+    """Returns the class name of an object"""
+    return obj.__class__.__name__

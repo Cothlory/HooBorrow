@@ -1,0 +1,9 @@
+Copyright (c) 2025 Chang Huang, Jennifer Wu, Ryan Russo
+
+This project uses the following third-party components:
+
+- Django (BSD 3-Clause License)
+  https://www.djangoproject.com/
+  Copyright (c) Django Software Foundation
+
+No endorsement by the Django Software Foundation is implied by this usage.

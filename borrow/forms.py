@@ -24,8 +24,11 @@ class CollectionForm(forms.ModelForm):
         model = Collections
         fields = ['title', 'description', 'items_list', 'is_collection_private', 'allowed_users']
         widgets = {
-            'items_list': forms.CheckboxSelectMultiple,
-            'allowed_users': forms.CheckboxSelectMultiple,
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'items_list': forms.CheckboxSelectMultiple(),
+            'is_collection_private': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'allowed_users': forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, librarian=None, is_librarian=True, editing=False, **kwargs):
@@ -58,4 +61,3 @@ class ReviewForm(forms.ModelForm):
 
 class CollectionRequestForm(forms.Form):
     notes = forms.CharField(label="Enter Reason", max_length=100)
-        
