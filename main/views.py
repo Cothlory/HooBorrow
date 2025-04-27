@@ -1,7 +1,7 @@
-from django.db.models import F
 from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, render, redirect
 from django.views import generic
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
@@ -45,3 +45,8 @@ def profile_view(request):
         return redirect('profile')
 
     return render(request, 'account/profile.html', {'role': role, 'patron': patron})
+
+def redirect_to_home(request):
+    """Redirect users trying to access AllAuth pages to the home page with a message"""
+    messages.info(request, "Please use Google login to sign in or register.", extra_tags='current-page')
+    return HttpResponseRedirect(reverse('home'))

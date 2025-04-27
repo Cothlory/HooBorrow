@@ -381,11 +381,11 @@ def delete_collection(request, pk):
         collection = get_object_or_404(Collections, pk=pk, creator=creator)
     
     if request.method == "POST":
+        collection_title = collection.title
         collection.delete()
-        messages.success(request, f"Collection '{collection.title}' deleted successfully.", extra_tags='current-page')
+        messages.success(request, f"Collection '{collection_title}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_collections")
-    
-    return render(request, "borrow/confirm_delete_collection.html", {"collection": collection})
+    return redirect("borrow:manage_collections")
 
 class CollectionDetailView(generic.DetailView):
     model = Collections
@@ -661,4 +661,55 @@ def create_collection(request):
         'form': form,
         'is_librarian': is_librarian,
     })
+
+@login_required
+def manage_items(request):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        messages.error(request, "You don't have permission to manage items.", extra_tags='current-page')
+        return redirect('home')
+
+    simple_items = SimpleItem.objects.all()
+    complex_items = ComplexItem.objects.all()
+    items = list(simple_items) + list(complex_items)
+    items.sort(key=lambda x: x.name)
     
+    return render(request, 'borrow/manage_items.html', {
+        'items': items,
+    })
+
+@login_required
+def edit_item(request, pk):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+    except Librarian.DoesNotExist:
+        messages.error(request, "You don't have permission to edit items.", extra_tags='current-page')
+        return redirect('home')
+    
+    try:
+        item = SimpleItem.objects.get(pk=pk)
+        form_class = SimpleItemForm
+        template = 'borrow/edit_simple_item.html'
+    except SimpleItem.DoesNotExist:
+        try:
+            item = ComplexItem.objects.get(pk=pk)
+            form_class = ComplexItemForm
+            template = 'borrow/edit_complex_item.html'
+        except ComplexItem.DoesNotExist:
+            messages.error(request, "Item not found.", extra_tags='current-page')
+            return redirect('borrow:manage_items')
+    
+    if request.method == 'POST':
+        form = form_class(request.POST, request.FILES, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Item '{item.name}' has been updated successfully.", extra_tags='current-page')
+            return redirect('borrow:manage_items')
+    else:
+        form = form_class(instance=item)
+    
+    return render(request, template, {
+        'form': form,
+        'item': item,
+    })
