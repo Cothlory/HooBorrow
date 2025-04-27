@@ -713,3 +713,24 @@ def edit_item(request, pk):
         'form': form,
         'item': item,
     })
+
+@login_required
+def delete_item(request, pk):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+        is_librarian = False
+    
+    if is_librarian:
+        item = get_object_or_404(Item, pk=pk)
+    else:
+        item = get_object_or_404(Item, pk=pk, creator=creator)
+    
+    if request.method == "POST":
+        item_name = item.name
+        item.delete()
+        messages.success(request, f"Item '{item_name}' deleted successfully.", extra_tags='current-page')
+        return redirect("borrow:manage_items")
+    return redirect("borrow:manage_items")
