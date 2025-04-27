@@ -19,7 +19,4 @@ urlpatterns = [
     re_path(r'^confirm-email/?.*$', views.redirect_to_home),
     re_path(r'^3rdparty/.*$', views.redirect_to_home),
     re_path(r'^social/.*$', views.redirect_to_home),
-    
-    # Special case for logout to avoid CSRF issues
-    path('logout/', views.redirect_to_home),
 ]
