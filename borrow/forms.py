@@ -12,7 +12,7 @@ class SimpleItemForm(forms.ModelForm):
 class ComplexItemForm(forms.ModelForm):
     class Meta:
         model = ComplexItem
-        fields = ['name', 'quantity', 'location', 'instructions', 'photo', 'condition', 'days_to_return', 'category']
+        fields = ['name','location', 'instructions', 'photo', 'condition', 'days_to_return', 'category']
         widgets = {
             'category': forms.HiddenInput(),
         }
