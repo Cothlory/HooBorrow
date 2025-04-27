@@ -57,7 +57,7 @@ class DetailView(generic.DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         item = self.get_object()
-        borrowed_items = BorrowedItem.objects.filter(item=item)
+        borrowed_items = BorrowedItem.objects.filter(item=item, returned=False)
         borrowers_info = []
         for borrowed_item in borrowed_items:
             borrowers_info.append({
@@ -386,6 +386,7 @@ def delete_collection(request, pk):
         messages.success(request, f"Collection '{collection_title}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_collections")
     return redirect("borrow:manage_collections")
+
 
 class CollectionDetailView(generic.DetailView):
     model = Collections
