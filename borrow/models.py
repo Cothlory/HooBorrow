@@ -57,6 +57,14 @@ class Item(models.Model):
                 return True
         return False
 
+    def delete(self, *args, **kwargs):
+        # Delete the photo from AWS S3
+        if self.photo:
+            self.photo.delete(save=False)
+        
+        # Call the parent class delete
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
