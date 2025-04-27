@@ -16,6 +16,9 @@
                 {% if is_simple_item %}
                 <strong>Available Quantity:</strong> {{ item.simpleitem.quantity }}<br>
                 {% endif %}
+                {% if is_complex_item %}
+                <strong>Condition:</strong> {{ item.complexitem.condition }}<br>
+                {% endif %}
             </p>
         </div>
     </div>

@@ -69,6 +69,7 @@ class DetailView(generic.DetailView):
         context['borrowers_info'] = borrowers_info
         reviews = item.reviews.all().order_by('-created_at')
         context['reviews'] = reviews
+        context['is_complex_item'] = hasattr(item, 'complexitem')
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
@@ -85,27 +86,6 @@ class DetailView(generic.DetailView):
             
         return context
 
-# def borrow_item(request, pk):
-#     try:
-#         patron = Patron.objects.get(user=request.user)
-#     except Patron.DoesNotExist:
-#         return redirect('account:profile')  # Redirect if not a Patron
-    
-#     # get item from the list
-#     item = Item.objects.get(pk=pk)
-
-#     # Create a form instance with POST data if the form is submitted
-#     form = QuantityForm(request.POST or None)
-    
-#     if request.method == "POST" and form.is_valid():
-#         quantity = form.cleaned_data['quantity']
-#         borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
-#         borrow_request.save()
-#         messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
-#         return redirect('borrow:detail', pk=pk)
-
-#     return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
-
 def borrow_item(request, pk):
     try:
         patron = Patron.objects.get(user=request.user)
@@ -117,6 +97,7 @@ def borrow_item(request, pk):
     
     # Check if it's a simple item or complex item
     is_simple_item = hasattr(item, 'simpleitem')
+    is_complex_item = hasattr(item, 'complexitem')
     
     if is_simple_item:
         # Create a form instance with POST data if the form is submitted for Simple Items
@@ -150,7 +131,11 @@ def borrow_item(request, pk):
             messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
             return redirect('borrow:detail', pk=pk)
         
-        return render(request, 'borrow/borrow.html', {'item': item, 'is_simple_item': False})
+        return render(request, 'borrow/borrow.html', {
+            'item': item, 
+            'is_simple_item': is_simple_item, 
+            'is_complex_item': is_complex_item
+        })
 
 
 def approve_requests(request):
