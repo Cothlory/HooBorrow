@@ -93,7 +93,6 @@ def borrow_item(request, pk):
     
     # get item from the list
     item = Item.objects.get(pk=pk)
-    print(item)
 
     # Create a form instance with POST data if the form is submitted
     form = QuantityForm(request.POST or None)
@@ -101,7 +100,6 @@ def borrow_item(request, pk):
     if request.method == "POST" and form.is_valid():
         quantity = form.cleaned_data['quantity']
         borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
-        print(request)
         borrow_request.save()
         messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
@@ -136,12 +134,12 @@ def approve_requests(request):
                 try:
                     # Try to get the item as a SimpleItem
                     simple_item = SimpleItem.objects.get(id=item.id)
-                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity)
+                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity, simple_item.days_to_return)
                 except SimpleItem.DoesNotExist:
                     # If it's not a SimpleItem, try ComplexItem
                     try:
                         complex_item = ComplexItem.objects.get(id=item.id)
-                        success = borrow_request.borrower.borrow_complex_item(complex_item)
+                        success = borrow_request.borrower.borrow_complex_item(complex_item, complex_item.days_to_return)
                     except ComplexItem.DoesNotExist:
                         messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.", extra_tags='current-page')
                         return redirect('borrow:approve_requests')
