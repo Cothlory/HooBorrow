@@ -2,21 +2,48 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Borrow {{ item.name }}</h2>
+    <h2>Borrow Item: {{ item.name }}</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            Item Details
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">{{ item.name }}</h5>
+            <p class="card-text">
+                <strong>Instructions:</strong> {{ item.instructions }}<br>
+                <strong>Location:</strong> {{ item.location }}<br>
+                {% if is_simple_item %}
+                <strong>Available Quantity:</strong> {{ item.simpleitem.quantity }}<br>
+                {% endif %}
+            </p>
+        </div>
     </div>
     
-    {% if user.is_authenticated %}
-        <form method="POST">
+    <form method="post">
         {% csrf_token %}
         
-        <label for="id_quantity">Quantity:</label>
-        {{ form.quantity }}
-
-        <button type="submit" class="btn btn-primary">Borrow Item</button>
-        </form>
-    {% else %}
-        <p>You need to be logged in to borrow this item.</p>
-    {% endif %}
+        {% if is_simple_item %}
+        <div class="form-group">
+            <label for="{{ form.quantity.id_for_label }}">Quantity to Borrow:</label>
+            {{ form.quantity }}
+            {% if form.quantity.errors %}
+            <div class="text-danger">
+                {{ form.quantity.errors }}
+            </div>
+            {% endif %}
+            <small class="form-text text-muted">You can borrow up to {{ item.simpleitem.quantity }} items.</small>
+        </div>
+        {% else %}
+        <div class="form-group">
+            <label>Quantity to Borrow:</label>
+            <input type="text" class="form-control" value="1" disabled>
+            <small class="form-text text-muted">Complex items can only be borrowed one at a time.</small>
+        </div>
+        {% endif %}
+        
+        <button type="submit" class="btn btn-primary mt-3">Submit Request</button>
+        <a href="{% url 'borrow:detail' item.id %}" class="btn btn-secondary mt-3">Cancel</a>
+    </form>
 </div>
 {% endblock %}
