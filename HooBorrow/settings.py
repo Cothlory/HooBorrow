@@ -46,11 +46,13 @@ if not DEBUG and 'test' not in sys.argv:
                                'https://cdn.jsdelivr.net',
                                'https://code.jquery.com',
                                'https://stackpath.bootstrapcdn.com',
-                               'https://cdnjs.cloudflare.com'),
+                               'https://cdnjs.cloudflare.com',
+                               '*.amazonaws.com'),
                 'style-src': ("'self'",
                               'https://cdn.jsdelivr.net',
                               'https://stackpath.bootstrapcdn.com',
                               'https://cdnjs.cloudflare.com',
+                              '*.amazonaws.com',
                               "'unsafe-inline'")}}
 
 ALLOWED_HOSTS = [
