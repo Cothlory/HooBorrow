@@ -32,18 +32,36 @@
     </div>
     
     <!-- Items Selection -->
-    <div class="mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <label class="form-label mb-0">Items</label>
-        <button type="button" id="browse-items-btn" class="btn btn-outline-primary">Browse</button>
+    <div id="items-container">
+      <div class="mb-3">
+        <h5>Current Items</h5>
+        <div class="list-group">
+          {% for item in collection.items_list %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ item.name }}</strong>
+                <div class="input-group" style="max-width: 200px;">
+                  <input type="text" disabled
+                         value="{{ item.quantity }}" 
+                         class="form-control"
+                         aria-label="Item quantity">
+                  <span class="input-group-text">of {{ item.quantity }}</span>
+                </div>
+              </div>
+              <button type="button" class="btn-close remove-item" aria-label="Remove" 
+                      data-item-id="{{ item.id }}"></button>
+              <input type="hidden" name="remove_item_{{ item.id }}" id="remove_item_{{ item.id }}" value="0">
+            </div>
+          {% endfor %}
+        </div>
       </div>
       
-      <div id="selected-items" class="list-group mb-2" style="max-width: 50%;">
-        <!-- Selected items will appear here -->
-      </div>
-      <!-- Hidden input to store the selected item IDs -->
-      <div id="items-container" style="display: none;">
-        {{ form.items_list }}
+      <div class="mb-3">
+        <h5>Add Items</h5>
+        <button type="button" id="browse-items-btn" class="btn btn-outline-primary">Browse</button>
+        <div id="selected-items" class="list-group mt-2">
+          <!-- Selected items will appear here -->
+        </div>
       </div>
     </div>
     
@@ -162,101 +180,80 @@
         const results = document.getElementById('item-search-results');
         results.innerHTML = '';
         
-        const itemCheckboxes = itemsContainer.querySelectorAll('input[type="checkbox"]');
-        itemCheckboxes.forEach(checkbox => {
-          const label = itemsContainer.querySelector(`label[for="${checkbox.id}"]`);
-          if (label && (query === '' || label.textContent.toLowerCase().includes(query.toLowerCase()))) {
-            const resultItem = document.createElement('a');
-            resultItem.href = '#';
-            resultItem.className = 'list-group-item list-group-item-action';
-            resultItem.textContent = label.textContent;
-            resultItem.dataset.itemId = checkbox.value;
-            resultItem.dataset.itemName = label.textContent;
-            
-            // Check if already selected and add visual indicator
-            if (checkbox.checked) {
-              resultItem.classList.add('active');
-              resultItem.innerHTML += '<span class="float-end">✓</span>';
-            }
-            
-            // Add click event to select this item
-            resultItem.addEventListener('click', function(e) {
-              e.preventDefault();
+        // Fetch items via AJAX
+        fetch(`/borrow/api/items/search/?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(items => {
+            items.forEach(item => {
+              // Skip items that have no available quantity
+              if (item.quantity <= 0) return;
               
-              // Toggle selection
-              const isSelected = document.querySelector(`#selected-items [data-item-id="${this.dataset.itemId}"]`);
-              if (isSelected) {
-                // If already selected, remove it
-                const checkbox = document.querySelector(`#items-container input[value="${this.dataset.itemId}"]`);
-                if (checkbox) {
-                  checkbox.checked = false;
+              const resultItem = document.createElement('a');
+              resultItem.href = '#';
+              resultItem.className = 'list-group-item list-group-item-action';
+              resultItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>${item.name}</strong>
+                    <div><small>Available: ${item.quantity}</small></div>
+                  </div>
+                  <div class="input-group" style="max-width: 150px;">
+                    <input type="number" class="form-control item-quantity-input" 
+                           min="1" max="${item.quantity}" value="1">
+                    <button class="btn btn-primary add-item-btn" type="button" 
+                            data-item-id="${item.id}" data-item-name="${item.name}">Add</button>
+                  </div>
+                </div>
+              `;
+              
+              // Add click handler to the add button
+              resultItem.querySelector('.add-item-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                const quantity = parseInt(resultItem.querySelector('.item-quantity-input').value);
+                if (quantity < 1 || quantity > item.quantity) {
+                  alert(`Please enter a valid quantity between 1 and ${item.quantity}`);
+                  return;
                 }
-                isSelected.remove();
-                this.classList.remove('active');
-                this.querySelector('.float-end')?.remove();
-              } else {
-                // Otherwise add it
-                selectItem(this.dataset.itemId, this.dataset.itemName);
-                this.classList.add('active');
-                if (!this.querySelector('.float-end')) {
-                  this.innerHTML += '<span class="float-end">✓</span>';
-                }
-              }
+                
+                addItemToCollection(item.id, item.name, quantity);
+                itemModal.hide();
+              });
+              
+              results.appendChild(resultItem);
             });
             
-            results.appendChild(resultItem);
-          }
-        });
-        
-        if (results.children.length === 0) {
-          const noResults = document.createElement('div');
-          noResults.className = 'list-group-item text-muted';
-          noResults.textContent = 'No items found';
-          results.appendChild(noResults);
-        }
+            if (results.children.length === 0) {
+              results.innerHTML = '<div class="list-group-item text-muted">No items found</div>';
+            }
+          });
       }
       
-      function selectItem(itemId, itemName) {
-        // Check if item is already selected
-        if (document.querySelector(`#selected-items [data-item-id="${itemId}"]`)) {
-          return;
-        }
+      function addItemToCollection(itemId, itemName, quantity) {
+        // Create hidden input for the server
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = `new_item_${itemId}`;
+        input.value = quantity;
+        document.getElementById('collection-form').appendChild(input);
         
-        // Check the corresponding checkbox
-        const checkbox = document.querySelector(`#items-container input[value="${itemId}"]`);
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-        
-        // Add to the visual selection
+        // Add visual element
         const itemElement = document.createElement('div');
         itemElement.className = 'list-group-item d-flex justify-content-between align-items-center';
-        itemElement.dataset.itemId = itemId;
-        
         itemElement.innerHTML = `
-          <span>${itemName}</span>
-          <button type="button" class="btn-close remove-item" aria-label="Remove"></button>
+          <div>
+            <strong>${itemName}</strong>
+            <div><small>Quantity: ${quantity}</small></div>
+          </div>
+          <button type="button" class="btn-close remove-new-item" aria-label="Remove" 
+                  data-item-id="${itemId}"></button>
         `;
         
-        itemElement.querySelector('.remove-item').addEventListener('click', function() {
-          // Uncheck the corresponding checkbox
-          const checkbox = document.querySelector(`#items-container input[value="${itemId}"]`);
-          if (checkbox) {
-            checkbox.checked = false;
-          }
-          
-          // Update modal item if it's visible
-          const modalItem = document.querySelector(`#item-search-results [data-item-id="${itemId}"]`);
-          if (modalItem) {
-            modalItem.classList.remove('active');
-            modalItem.querySelector('.float-end')?.remove();
-          }
-          
-          // Remove from visual selection
+        itemElement.querySelector('.remove-new-item').addEventListener('click', function() {
+          document.querySelector(`input[name="new_item_${itemId}"]`).remove();
           itemElement.remove();
         });
         
-        selectedItemsContainer.appendChild(itemElement);
+        document.getElementById('selected-items').appendChild(itemElement);
       }
       
       // User search and selection (only if in a private collection)
@@ -389,6 +386,15 @@
         if (label) {
           selectItem(checkbox.value, label.textContent);
         }
+      });
+    });
+    
+    document.querySelectorAll('.remove-item').forEach(button => {
+      button.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        const hiddenInput = document.getElementById(`remove_item_${itemId}`);
+        hiddenInput.value = "1";
+        this.closest('.list-group-item').style.display = 'none';
       });
     });
   </script>

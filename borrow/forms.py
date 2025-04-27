@@ -1,5 +1,5 @@
 from django import forms
-from .models import SimpleItem, ComplexItem, Collections, Patron, Review
+from .models import SimpleItem, ComplexItem, Collections, Patron, Review, CollectionItemAllocation
 
 class SimpleItemForm(forms.ModelForm):
     class Meta:
@@ -19,14 +19,38 @@ class ComplexItemForm(forms.ModelForm):
 class QuantityForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity", required=True)
 
+class CollectionItemForm(forms.Form):
+    quantity = forms.IntegerField(min_value=1, required=True, 
+        widget=forms.NumberInput(attrs={'class': 'form-control'}))
+        
+    def __init__(self, *args, item=None, collection=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.item = item
+        self.collection = collection
+        
+        if item:
+            # Set max value based on available quantity
+            available = item.available_quantity
+            if collection:
+                # If editing, add back the current allocation
+                try:
+                    current_allocation = CollectionItemAllocation.objects.get(
+                        collection=collection, item=item)
+                    available += current_allocation.allocated_quantity
+                except CollectionItemAllocation.DoesNotExist:
+                    pass
+                    
+            self.fields['quantity'].max_value = available
+            self.fields['quantity'].widget.attrs['max'] = available
+            self.fields['quantity'].help_text = f"Available: {available}"
+
 class CollectionForm(forms.ModelForm):
     class Meta:
         model = Collections
-        fields = ['title', 'description', 'items_list', 'is_collection_private', 'allowed_users']
+        fields = ['title', 'description', 'is_collection_private', 'allowed_users']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'items_list': forms.CheckboxSelectMultiple(),
             'is_collection_private': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'allowed_users': forms.CheckboxSelectMultiple(),
         }

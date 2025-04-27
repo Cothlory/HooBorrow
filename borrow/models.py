@@ -23,6 +23,15 @@ class Item(models.Model):
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
+    
+    # New fields for tracking original/copy relationship
+    is_original = models.BooleanField(default=True)
+    original_item = models.ForeignKey('self', on_delete=models.CASCADE, 
+                                      null=True, blank=True, 
+                                      related_name='copies')
+    collection = models.ForeignKey('Collections', on_delete=models.SET_NULL, 
+                                  null=True, blank=True, 
+                                  related_name='collection_items')
 
     category = models.CharField(
         max_length=10,
@@ -30,34 +39,71 @@ class Item(models.Model):
         default=CATEGORY_OTHER,
         help_text="Used for grouping in browse and picking the right form"
     )
-
-    def list_borrowers(self):
-        borrowed_items = BorrowedItem.objects.filter(item=self)
-        borrowers = [borrowed_item.borrower for borrowed_item in borrowed_items]
-        return borrowers
     
     @property
     def is_in_private_collection(self):
-        return self.collections.filter(is_collection_private=True).exists()
+        """Check if item is in a private collection"""
+        return self.collection is not None and self.collection.is_collection_private
+    
+    @property
+    def total_quantity(self):
+        """Get total quantity across original and copies"""
+        if self.is_original:
+            copies_quantity = sum(copy.quantity for copy in self.copies.all())
+            return self.quantity + copies_quantity
+        return self.quantity
 
     def can_view(self, user):
-        if not self.is_in_private_collection:
+        # Original items are always visible
+        if self.is_original:
             return True
-
-        if not user.is_authenticated:
-            return False
-
-        from .models import Librarian
-        if Librarian.objects.filter(user=user).exists():
-            return True
-
-        for col in self.collections.filter(is_collection_private=True):
-            if col.can_view(user):
+            
+        # Items in collection need to check collection visibility
+        if self.collection:
+            if not self.collection.is_collection_private:
                 return True
-        return False
+                
+            if not user.is_authenticated:
+                return False
+                
+            from .models import Librarian
+            if Librarian.objects.filter(user=user).exists():
+                return True
+                
+            # Check if user is allowed in this private collection
+            return self.collection.allowed_users.filter(pk=user.patron.pk).exists()
+            
+        return True
 
     def __str__(self):
-        return self.name
+        status = "Original" if self.is_original else f"Copy in {self.collection.title if self.collection else 'No Collection'}"
+        return f"{self.name} ({status}) - Qty: {self.quantity}"
+
+    # Create a copy for collection
+    def create_copy_for_collection(self, collection, quantity):
+        """Create a copy of this item for a collection"""
+        if self.quantity < quantity:
+            raise ValueError(f"Not enough quantity. Available: {self.quantity}")
+            
+        # Create copy with same attributes
+        copy_item = Item.objects.create(
+            name=self.name,
+            quantity=quantity,
+            location=self.location,
+            instructions=self.instructions,
+            photo=self.photo,
+            category=self.category,
+            is_original=False,
+            original_item=self,
+            collection=collection
+        )
+        
+        # Reduce quantity from original
+        self.quantity -= quantity
+        self.save()
+        
+        return copy_item
+
 
 class SimpleItem(Item):
     
@@ -87,71 +133,72 @@ class Patron(models.Model):
     email = models.CharField(max_length=200)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     
-    def borrow_simple_item(self, simple_item, quantity, days_to_return=7):
-        if simple_item.quantity >= quantity: 
-            due_date = timezone.now() + timedelta(days=days_to_return)
-            borrowed_item = BorrowedItem.objects.create(
-                borrower=self,
-                item=simple_item, 
-                quantity=quantity,
-                due_date=due_date,
-                item_type = 'SIMPLE'
-            )
-            simple_item.quantity -= quantity
-            simple_item.save()
-            return True
-        return False
+    def borrow_item(self, item, quantity=1, days_to_return=7):
+        """Generic method to borrow any item"""
+        if not item.can_view(self.user):
+            return False
+            
+        if item.quantity < quantity:
+            return False
+            
+        # Create borrowed record
+        due_date = timezone.now() + timedelta(days=days_to_return)
+        item_type = 'COMPLEX' if hasattr(item, 'condition') else 'SIMPLE'
+        
+        borrowed_item = BorrowedItem.objects.create(
+            borrower=self,
+            item=item,
+            quantity=quantity,
+            due_date=due_date,
+            item_type=item_type
+        )
+        
+        # Reduce item quantity
+        item.quantity -= quantity
+        item.save()
+        
+        return True
+    
+    def return_item(self, borrowed_item, quantity=None):
+        """Generic method to return any borrowed item"""
+        quantity_to_return = quantity or borrowed_item.quantity
+        
+        if quantity_to_return > borrowed_item.quantity:
+            return False
+            
+        borrowed_item.return_item(quantity_to_return)
+        return True
+        
+    # Legacy methods for backward compatibility
+    def borrow_simple_item(self, simple_item, quantity=1, days_to_return=7):
+        return self.borrow_item(simple_item, quantity, days_to_return)
 
     def borrow_complex_item(self, complex_item, days_to_return=7):
-        if complex_item.quantity >= 1:
-            due_date = timezone.now() + timedelta(days=days_to_return)
-            borrowed_item = BorrowedItem.objects.create(
-                borrower=self,
-                item=complex_item,
-                quantity=1,
-                due_date=due_date,
-                item_type='COMPLEX'
-            )
-            complex_item.quantity -= 1
-            complex_item.save()
-            return True
-        return False
+        return self.borrow_item(complex_item, 1, days_to_return)
 
-    def return_simple_item(self, simple_item, quantity):
+    def return_simple_item(self, simple_item, quantity=1):
         borrowed_item = BorrowedItem.objects.filter(
             borrower=self,
-            item=simple_item
+            item=simple_item,
+            returned=False
         ).first()
-
-        if borrowed_item and borrowed_item.quantity >= quantity:
-            borrowed_item.quantity -= quantity
-            borrowed_item.save()
-
-            if borrowed_item.quantity == 0:
-                borrowed_item.delete()
+        
+        if not borrowed_item:
+            return False
             
-            simple_item.quantity += quantity
-            simple_item.save()
-            return True
-        return False
+        return self.return_item(borrowed_item, quantity)
 
-    def return_complex_item(self, complex_item, quantity):
+    def return_complex_item(self, complex_item, quantity=1):
         borrowed_item = BorrowedItem.objects.filter(
             borrower=self,
-            item=complex_item
+            item=complex_item,
+            returned=False
         ).first()
-
-        if borrowed_item and borrowed_item.quantity >= quantity:
-            borrowed_item.quantity -= quantity
-            borrowed_item.save()
-
-            if borrowed_item.quantity == 0:
-                borrowed_item.delete()
+        
+        if not borrowed_item:
+            return False
             
-            complex_item.quantity += quantity
-            complex_item.save()
-            return True
-        return False
+        return self.return_item(borrowed_item, quantity)
 
     def __str__(self):
         return self.name
@@ -171,17 +218,30 @@ class BorrowedItem(models.Model):
     item_type = models.CharField(max_length=7, choices=BORROWED_ITEM_TYPES)
 
     def __str__(self):
-        if self.item_type == 'SIMPLE':
-            return f"{self.borrower.name} borrowed {self.quantity} of {self.item.simpleitem.name}"
-        return f"{self.borrower.name} borrowed {self.quantity} of {self.item.complexitem.name}"
+        item_name = self.item.name
+        return f"{self.borrower.name} borrowed {self.quantity} of {item_name}"
 
     def is_late(self):
         if self.returned:
             return False
         return timezone.now() > self.due_date
 
-    def return_item(self):
-        self.returned = True
+    def return_item(self, quantity=None):
+        """Return the borrowed item (or partial quantity)"""
+        quantity_to_return = quantity or self.quantity
+        
+        if quantity_to_return > self.quantity:
+            raise ValueError(f"Cannot return more than borrowed ({self.quantity})")
+        
+        # Add quantity back to the item
+        self.item.quantity += quantity_to_return
+        self.item.save()
+        
+        # Update the borrowed record
+        self.quantity -= quantity_to_return
+        if self.quantity <= 0:
+            self.returned = True
+            
         self.save()
 
 
@@ -235,7 +295,6 @@ class Librarian(Patron):
 class Collections(models.Model):
     title = models.CharField(max_length=200)
     description = models.CharField(max_length=500)
-    items_list = models.ManyToManyField(Item, blank=True, related_name="collections")
     is_collection_private = models.BooleanField(default=False)
     creator = models.ForeignKey(Patron, on_delete=models.CASCADE, related_name='creator')
     allowed_users = models.ManyToManyField(
@@ -245,51 +304,47 @@ class Collections(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
+    @property
+    def items_list(self):
+        """Return all items in this collection"""
+        return Item.objects.filter(collection=self, is_original=False)
+    
+    def add_item(self, original_item, quantity=1):
+        """Add a copy of an item to the collection with specified quantity"""
+        # Ensure the quantity is valid
+        if quantity <= 0 or quantity > original_item.quantity:
+            raise ValueError(f"Invalid quantity. Available: {original_item.quantity}")
+            
+        # Create a copy of the item for this collection
+        copy = original_item.create_copy_for_collection(self, quantity)
+        return copy
+            
+    def remove_item(self, copy_item):
+        """Remove an item from this collection and return quantity to original"""
+        if copy_item.collection != self or copy_item.is_original:
+            raise ValueError("Item is not a copy in this collection")
+            
+        # Get the original and return quantity to it
+        original = copy_item.original_item
+        if original:
+            original.quantity += copy_item.quantity
+            original.save()
+        
+        # Delete the copy
+        copy_item.delete()
+            
     def can_view(self, user):
         if not self.is_collection_private:
             return True
+            
         if not user.is_authenticated:
             return False
+            
         from .models import Librarian
         if Librarian.objects.filter(user=user).exists():
             return True
+            
         return self.allowed_users.filter(pk=user.patron.pk).exists()
-
-    def clean(self):
-        """
-        Only validate *newly added* items against the private/public-collection rules.
-        This lets you remove items freely even if they were previously in a private collection.
-        """
-        if not self.pk:
-            return
-        
-        orig = Collections.objects.get(pk=self.pk)
-        old_items = set(orig.items_list.all())
-        new_items = set(self.items_list.all()) - old_items
-        for item in new_items:
-            qs = Collections.objects.filter(items_list=item)
-            if self.pk:
-                qs = qs.exclude(pk=self.pk)
-
-            if self.is_collection_private:
-                if qs.exists():
-                    raise ValidationError(
-                        f"Item '{item.name}' is already in another collection "
-                        f"and cannot be added to a private collection."
-                    )
-            else:
-                priv = qs.filter(is_collection_private=True).first()
-                if priv:
-                    raise ValidationError(
-                        f"Item '{item.name}' is in private collection "
-                        f"'{priv.title}' and cannot be added to this public collection."
-                    )
-
-        super().clean()
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
@@ -345,3 +400,15 @@ class Review(models.Model):
         
     def __str__(self):
         return f"{self.reviewer.name}'s review of {self.item.name}"
+
+class CollectionItemAllocation(models.Model):
+    collection = models.ForeignKey(Collections, on_delete=models.CASCADE, related_name='item_allocations')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='collection_allocations')
+    allocated_quantity = models.IntegerField(default=1, 
+        help_text="Number of units allocated to this collection")
+    
+    class Meta:
+        unique_together = ('collection', 'item')
+        
+    def __str__(self):
+        return f"{self.allocated_quantity} of {self.item.name} in {self.collection.title}"

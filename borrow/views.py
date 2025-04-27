@@ -1,5 +1,5 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import Q
 
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review, CollectionRequest
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review, CollectionRequest, CollectionItemAllocation
 from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm, CollectionRequestForm
 
 def index(request):
@@ -51,37 +51,55 @@ class DetailView(generic.DetailView):
     def dispatch(self, request, *args, **kwargs):
         item = self.get_object()
         if not item.can_view(request.user):
-            return HttpResponseForbidden("You do not have permission to view this item.")
+            messages.warning(request, "You don't have permission to view this item.", extra_tags='current-page')
+            return redirect('borrow:index')
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         item = self.get_object()
-        borrowed_items = BorrowedItem.objects.filter(item=item)
+        
+        # Get borrowed items
+        borrowed_items = BorrowedItem.objects.filter(item=item, returned=False)
         borrowers_info = []
         for borrowed_item in borrowed_items:
             borrowers_info.append({
-                "borrower_name": borrowed_item.borrower.name,
-                "borrowed_quantity": borrowed_item.quantity,
-                "due_date": borrowed_item.due_date,
-                "is_late": borrowed_item.is_late()
+                'borrower_name': borrowed_item.borrower.name,
+                'borrowed_quantity': borrowed_item.quantity,
+                'due_date': borrowed_item.due_date,
+                'is_late': borrowed_item.is_late()
             })
+        
         context['borrowers_info'] = borrowers_info
+        
+        # Get reviews
         reviews = item.reviews.all().order_by('-created_at')
         context['reviews'] = reviews
+        
+        # Check if user can review
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
-                has_borrowed = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
-                has_reviewed = Review.objects.filter(reviewer=patron, item=item).exists()
-                context['can_review'] = has_borrowed
-                context['has_reviewed'] = has_reviewed
+                context['can_review'] = True
+                context['has_reviewed'] = item.reviews.filter(reviewer=patron).exists()
             except Patron.DoesNotExist:
                 context['can_review'] = False
-                context['has_reviewed'] = False
         else:
             context['can_review'] = False
-            context['has_reviewed'] = False
+        
+        # Check if user has borrowed this item
+        if self.request.user.is_authenticated:
+            try:
+                patron = Patron.objects.get(user=self.request.user)
+                context['borrowed'] = BorrowedItem.objects.filter(
+                    borrower=patron,
+                    item=item,
+                    returned=False
+                ).exists()
+            except Patron.DoesNotExist:
+                context['borrowed'] = False
+        else:
+            context['borrowed'] = False
             
         return context
 
@@ -92,17 +110,30 @@ def borrow_item(request, pk):
         return redirect('account:profile')  # Redirect if not a Patron
     
     # get item from the list
-    item = Item.objects.get(pk=pk)
-    print(item)
+    item = get_object_or_404(Item, pk=pk)
+    
+    # Check if user can view this item
+    if not item.can_view(request.user):
+        messages.error(request, "You don't have permission to borrow this item.", extra_tags='current-page')
+        return redirect('borrow:index')
 
     # Create a form instance with POST data if the form is submitted
     form = QuantityForm(request.POST or None)
     
     if request.method == "POST" and form.is_valid():
         quantity = form.cleaned_data['quantity']
-        borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
-        print(request)
-        borrow_request.save()
+        
+        # Validate quantity against available
+        if quantity <= 0 or quantity > item.quantity:
+            messages.error(request, f"Invalid quantity. Available: {item.quantity}", extra_tags='current-page')
+            return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
+            
+        borrow_request = BorrowRequest.objects.create(
+            borrower=patron, 
+            item=item, 
+            quantity=quantity, 
+            date=timezone.now()
+        )
         messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
 
@@ -329,39 +360,50 @@ def edit_collection(request, pk):
 
     if request.method == "POST":
         form = CollectionForm(request.POST, instance=coll,
-                              librarian=librarian if is_librarian else creator,
-                              is_librarian=is_librarian, editing=True)
+                          librarian=librarian if is_librarian else creator,
+                          is_librarian=is_librarian, editing=True)
+                          
         if form.is_valid():
-            # compute newly‐added items only
-            old_set = set(coll.items_list.all())
-            new_set = set(form.cleaned_data['items_list']) - old_set
-            errs = []
-            for item in new_set:
-                existing = Collections.objects.exclude(pk=coll.pk).filter(items_list=item)
-                if coll.is_collection_private:
-                    if existing.exists():
-                        errs.append(
-                            f"'{item.name}' is in other collection(s). "
-                            "Remove it from all other collections before adding it to a private collection."
-                        )
-                else:
-                    priv = existing.filter(is_collection_private=True).first()
-                    if priv:
-                        errs.append(
-                            f"'{item.name}' is in private collection “{priv.title}”. "
-                            "Remove it from that collection before adding it to a public collection."
-                        )
-            if errs:
-                for e in errs:
-                    messages.error(request, e, extra_tags='current-page')
-            else:
-                form.save()
-                messages.success(request, f"Collection '{coll.title}' updated.", extra_tags='current-page')
-                return redirect('borrow:manage_collections')
+            collection = form.save()
+            
+            # Process items being removed
+            items_to_remove = []
+            for item in collection.items_list:
+                item_id = item.id
+                if f"remove_item_{item_id}" in request.POST:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                try:
+                    collection.remove_item(item)
+                except ValueError as e:
+                    messages.error(request, str(e), extra_tags='current-page')
+            
+            # Process new items
+            for key, value in request.POST.items():
+                if key.startswith('new_item_'):
+                    item_id = int(key.replace('new_item_', ''))
+                    quantity = int(value)
+                    
+                    try:
+                        original_item = Item.objects.get(id=item_id, is_original=True)
+                        if quantity > 0 and quantity <= original_item.quantity:
+                            collection.add_item(original_item, quantity)
+                        else:
+                            messages.error(request, 
+                                f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
+                                extra_tags='current-page')
+                    except Item.DoesNotExist:
+                        messages.error(request, f"Original item not found", extra_tags='current-page')
+                    except ValueError as e:
+                        messages.error(request, str(e), extra_tags='current-page')
+            
+            messages.success(request, f"Collection '{coll.title}' updated.", extra_tags='current-page')
+            return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(instance=coll,
-                              librarian=librarian if is_librarian else creator,
-                              is_librarian=is_librarian, editing=True)
+                          librarian=librarian if is_librarian else creator,
+                          is_librarian=is_librarian, editing=True)
 
     return render(request, "borrow/edit_collection.html", {
         "form": form,
@@ -395,24 +437,20 @@ class CollectionDetailView(generic.DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         collection = self.get_object()
-        if collection.is_collection_private and not request.user.is_authenticated:
-            return HttpResponseForbidden("You do not have permission to view this collection.")
+        if collection.is_collection_private and not collection.can_view(request.user):
+            messages.warning(request, "This is a private collection.", extra_tags='current-page')
         return super().dispatch(request, *args, **kwargs)
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         collection = self.get_object()
-        user = self.request.user
-        if not collection.is_collection_private:
-            visible_items = collection.items_list.all()
-        else:
-            from .models import Librarian
-            if user.is_authenticated and Librarian.objects.filter(user=user).exists():
-                visible_items = collection.items_list.all()
-            elif user.is_authenticated and collection.allowed_users.filter(pk=user.patron.pk).exists():
-                visible_items = collection.items_list.all()
-            else:
-                visible_items = []
+        
+        # Get visible items based on user permissions
+        visible_items = []
+        for item in collection.items_list:
+            if item.can_view(self.request.user):
+                visible_items.append(item)
+                
         context['visible_items'] = visible_items
         return context
 
@@ -501,48 +539,22 @@ def return_item(request, borrowed_item_id):
         
         if quantity_to_return <= 0 or quantity_to_return > borrowed_item.quantity:
             messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.", extra_tags='current-page')
-            return redirect('borrow:my_borrowed_items' if is_borrower else 'borrow:all_borrowed_items')
+            return render(request, 'borrow/return_item.html', {'borrowed_item': borrowed_item})
         
+        # Return to the correct item
         item = borrowed_item.item
-        success = False
         
-        if borrowed_item.item_type == 'SIMPLE':
-            try:
-                simple_item = SimpleItem.objects.get(id=item.id)
-                if is_borrower:
-                    success = borrowed_item.borrower.return_simple_item(simple_item, quantity_to_return)
-                else:  
-                    simple_item.quantity += quantity_to_return
-                    simple_item.save()
-                    
-                    borrowed_item.quantity -= quantity_to_return
-                    if borrowed_item.quantity == 0:
-                        borrowed_item.returned = True
-                    borrowed_item.save()
-                    success = True
-            except SimpleItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Simple Item.", extra_tags='current-page')
-        else: 
-            try:
-                complex_item = ComplexItem.objects.get(id=item.id)
-                if is_borrower:
-                    success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
-                else: 
-                    complex_item.quantity += quantity_to_return
-                    complex_item.save()
-                    
-                    borrowed_item.quantity -= quantity_to_return
-                    if borrowed_item.quantity == 0:
-                        borrowed_item.returned = True
-                    borrowed_item.save()
-                    success = True
-            except ComplexItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Complex Item.", extra_tags='current-page')
+        # Add the quantity back
+        item.quantity += quantity_to_return
+        item.save()
         
-        if success:
-            messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.", extra_tags='current-page')
-        else:
-            messages.error(request, f"Failed to return {item.name}. Please try again.", extra_tags='current-page')
+        # Update the borrowed record
+        borrowed_item.quantity -= quantity_to_return
+        if borrowed_item.quantity <= 0:
+            borrowed_item.returned = True
+        borrowed_item.save()
+        
+        messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.", extra_tags='current-page')
         
         if is_borrower:
             return redirect('borrow:my_borrowed_items')
@@ -715,3 +727,27 @@ def edit_item(request, pk):
         'form': form,
         'item': item,
     })
+
+def search_items(request):
+    query = request.GET.get('q', '')
+    items = Item.objects.filter(is_original=True)  # Only search original items
+    
+    if query:
+        items = items.filter(name__icontains=query)
+    
+    # Only show items with quantity > 0
+    items = items.filter(quantity__gt=0)
+    
+    # Limit results
+    items = items[:20]  
+    
+    results = []
+    for item in items:
+        results.append({
+            'id': item.id,
+            'name': item.name,
+            'quantity': item.quantity,
+            'available_quantity': item.quantity,  # For original items, all quantity is available
+        })
+    
+    return JsonResponse(results, safe=False)
