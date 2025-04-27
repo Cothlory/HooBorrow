@@ -19,7 +19,7 @@ class Item(models.Model):
     ]
 
     name = models.CharField(max_length=200)
-    quantity = models.IntegerField(default=0)
+    quantity = models.IntegerField(default=1)
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
