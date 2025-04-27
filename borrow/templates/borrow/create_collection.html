@@ -31,20 +31,6 @@
       {% endif %}
     </div>
     
-    <div class="mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <label class="form-label mb-0">Items</label>
-        <button type="button" id="browse-items-btn" class="btn btn-outline-primary">Browse</button>
-      </div>
-      
-      <div id="selected-items" class="list-group mb-2">
-        <!-- Selected items will appear here -->
-      </div>
-      <div id="items-container" style="display: none;">
-        {{ form.items_list }}
-      </div>
-    </div>
-    
     {% if is_librarian %}
       <div class="mb-3 form-check">
         {{ form.is_collection_private }}
@@ -68,6 +54,10 @@
       </div>
     </div>
     
+    <div class="alert alert-info">
+      After creating the collection, you will be able to add items to it.
+    </div>
+    
     <button type="submit" class="btn btn-primary">Create Collection</button>
     <a href="{% url 'borrow:manage_collections' %}" class="btn btn-secondary">Cancel</a>
   </form>
@@ -75,131 +65,17 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       // Hide the default form widgets
-      document.querySelectorAll('#items-container .form-check').forEach(el => {
-        el.style.display = 'none';
-      });
-      
       if (document.getElementById('users-container')) {
         document.querySelectorAll('#users-container .form-check').forEach(el => {
           el.style.display = 'none';
         });
       }
       
-      // Initialize variables
-      const modalItemSearch = document.getElementById('modal-item-search');
-      const selectedItemsContainer = document.getElementById('selected-items');
-      const itemsContainer = document.getElementById('items-container');
-      
-      let modalUserSearch, selectedUsersContainer, usersContainer;
-      
-      if (document.getElementById('allowed-users-section')) {
-        modalUserSearch = document.getElementById('modal-user-search');
-        selectedUsersContainer = document.getElementById('selected-users');
-        usersContainer = document.getElementById('users-container');
-      }
-      
-      // Item search and selection
-      const itemModal = new bootstrap.Modal(document.getElementById('itemSearchModal'));
-      document.getElementById('browse-items-btn').addEventListener('click', function() {
-        modalItemSearch.value = '';
-        searchItems(''); // Show all items initially
-        itemModal.show();
-      });
-      
-      modalItemSearch.addEventListener('input', function() {
-        searchItems(this.value);
-      });
-      
-      function searchItems(query) {
-        // Search results placeholder
-        const results = document.getElementById('item-search-results');
-        results.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        
-        // Fetch items via AJAX
-        fetch(`/borrow/api/items/search/?q=${encodeURIComponent(query)}`)
-          .then(response => response.json())
-          .then(items => {
-            results.innerHTML = '';
-            
-            items.forEach(item => {
-              // Skip items that are already fully allocated
-              if (item.available_quantity <= 0) return;
-              
-              const resultItem = document.createElement('a');
-              resultItem.href = '#';
-              resultItem.className = 'list-group-item list-group-item-action';
-              resultItem.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>${item.name}</strong>
-                    <div><small>Available: ${item.available_quantity} of ${item.quantity}</small></div>
-                  </div>
-                  <div class="input-group" style="max-width: 150px;">
-                    <input type="number" class="form-control item-quantity-input" 
-                         min="1" max="${item.available_quantity}" value="1">
-                    <button class="btn btn-primary add-item-btn" type="button" 
-                            data-item-id="${item.id}" data-item-name="${item.name}">Add</button>
-                  </div>
-                </div>
-              `;
-              
-              // Add click handler to the add button
-              resultItem.querySelector('.add-item-btn').addEventListener('click', function(e) {
-                e.preventDefault();
-                const quantity = parseInt(resultItem.querySelector('.item-quantity-input').value);
-                if (quantity < 1 || quantity > item.available_quantity) {
-                  alert(`Please enter a valid quantity between 1 and ${item.available_quantity}`);
-                  return;
-                }
-                
-                addItemToCollection(item.id, item.name, quantity);
-                itemModal.hide();
-              });
-              
-              results.appendChild(resultItem);
-            });
-            
-            if (results.children.length === 0) {
-              results.innerHTML = '<div class="list-group-item text-muted">No items found</div>';
-            }
-          })
-          .catch(error => {
-            results.innerHTML = '<div class="list-group-item text-danger">Error loading items</div>';
-            console.error('Error fetching items:', error);
-          });
-      }
-      
-      function addItemToCollection(itemId, itemName, quantity) {
-        // Create hidden input for the server
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = `new_item_${itemId}`;
-        input.value = quantity;
-        document.getElementById('collection-form').appendChild(input);
-        
-        // Add visual element
-        const itemElement = document.createElement('div');
-        itemElement.className = 'list-group-item d-flex justify-content-between align-items-center';
-        itemElement.innerHTML = `
-          <div>
-            <strong>${itemName}</strong>
-            <div><small>Quantity: ${quantity}</small></div>
-          </div>
-          <button type="button" class="btn-close remove-new-item" aria-label="Remove" 
-                  data-item-id="${itemId}"></button>
-        `;
-        
-        itemElement.querySelector('.remove-new-item').addEventListener('click', function() {
-          document.querySelector(`input[name="new_item_${itemId}"]`).remove();
-          itemElement.remove();
-        });
-        
-        selectedItemsContainer.appendChild(itemElement);
-      }
-      
       // User search and selection (only if in a private collection)
       if (document.getElementById('allowed-users-section')) {
         const userModal = new bootstrap.Modal(document.getElementById('userSearchModal'));
+        const modalUserSearch = document.getElementById('modal-user-search');
+        const selectedUsersContainer = document.getElementById('selected-users');
         
         // Show user modal when Browse Users button is clicked
         document.getElementById('browse-users-btn').addEventListener('click', function() {
@@ -245,14 +121,13 @@
                   </div>
                 `;
                 
-                // Add click handler to the add button
+                // Add click handler to add user button
                 resultItem.querySelector('.add-user-btn').addEventListener('click', function(e) {
                   e.preventDefault();
                   
                   const checkbox = document.querySelector(`#users-container input[value="${user.id}"]`);
                   
                   if (checkbox) {
-                    // Toggle user selection
                     if (checkbox.checked) {
                       // Remove the user
                       checkbox.checked = false;
@@ -260,7 +135,6 @@
                       this.classList.remove('btn-success');
                       this.classList.add('btn-primary');
                       
-                      // Remove from visual display
                       const existingUser = document.querySelector(`#selected-users [data-user-id="${user.id}"]`);
                       if (existingUser) {
                         existingUser.remove();
@@ -272,7 +146,6 @@
                       this.classList.remove('btn-primary');
                       this.classList.add('btn-success');
                       
-                      // Add to visual display
                       addUserToCollection(user.id, user.name);
                     }
                   }
@@ -346,7 +219,9 @@
             checkbox.checked = false;
           });
           // Clear visual selection
-          selectedUsersContainer.innerHTML = '';
+          if (document.getElementById('selected-users')) {
+            document.getElementById('selected-users').innerHTML = '';
+          }
         }
       }
       
@@ -356,22 +231,6 @@
       }
     });
   </script>
-
-  <!-- Item Search Modal -->
-  <div class="modal fade" id="itemSearchModal" tabindex="-1" aria-labelledby="itemSearchModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="itemSearchModalLabel">Browse Items</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="text" id="modal-item-search" class="form-control mb-2" placeholder="Search items...">
-          <div class="list-group" id="item-search-results"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- User Search Modal -->
   <div class="modal fade" id="userSearchModal" tabindex="-1" aria-labelledby="userSearchModalLabel" aria-hidden="true">

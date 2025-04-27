@@ -344,67 +344,81 @@ def edit_collection(request, pk):
         librarian = Librarian.objects.get(user=request.user)
         is_librarian = True
     except Librarian.DoesNotExist:
-        creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
+        creator = Patron.objects.get(user=request.user)
+    
     if is_librarian:
-        coll = get_object_or_404(Collections, pk=pk)
+        collection = get_object_or_404(Collections, pk=pk)
     else:
-        coll = get_object_or_404(Collections, pk=pk, creator=creator)
-
-    if request.method == "POST":
-        form = CollectionForm(request.POST, instance=coll,
+        collection = get_object_or_404(Collections, pk=pk, creator=creator)
+    
+    if request.method == 'POST':
+        form = CollectionForm(request.POST, instance=collection, 
                           librarian=librarian if is_librarian else creator,
-                          is_librarian=is_librarian, editing=True)
-                          
+                          is_librarian=is_librarian,
+                          editing=True)
         if form.is_valid():
-            collection = form.save()
+            form.save()
             
-            # Process items being removed
-            items_to_remove = []
-            for item in collection.items_list:
-                item_id = item.id
-                remove_key = f"remove_item_{item_id}"
-                if remove_key in request.POST and request.POST.get(remove_key) == "1":
-                    items_to_remove.append(item)
-            
-            for item in items_to_remove:
-                try:
-                    collection.remove_item(item)
-                    messages.success(request, f"Removed {item.name} from collection", extra_tags='current-page')
-                except ValueError as e:
-                    messages.error(request, str(e), extra_tags='current-page')
-            
-            # Process new items
+            # Process item removals
             for key, value in request.POST.items():
-                if key.startswith('new_item_'):
-                    item_id = int(key.replace('new_item_', ''))
-                    quantity = int(value)
-                    
+                if key.startswith('remove_item_') and value == '1':
+                    item_id = key.replace('remove_item_', '')
                     try:
-                        original_item = Item.objects.get(id=item_id, is_original=True)
-                        if quantity > 0 and quantity <= original_item.quantity:
-                            collection.add_item(original_item, quantity)
-                            messages.success(request, f"Added {quantity} of {original_item.name} to collection", extra_tags='current-page')
-                        else:
-                            messages.error(request, 
-                                f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
-                                extra_tags='current-page')
+                        item = Item.objects.get(id=item_id)
+                        message = collection.remove_item(item)
+                        messages.info(request, message, extra_tags='current-page')
                     except Item.DoesNotExist:
-                        messages.error(request, f"Original item not found", extra_tags='current-page')
+                        messages.error(request, f"Item not found", extra_tags='current-page')
                     except ValueError as e:
                         messages.error(request, str(e), extra_tags='current-page')
             
-            messages.success(request, f"Collection '{coll.title}' updated.", extra_tags='current-page')
-            return redirect('borrow:manage_collections')
+            # Process new items - they are submitted as hidden inputs with name new_item_[id]
+            for key, value in request.POST.items():
+                if key.startswith('new_item_'):
+                    item_id = int(key.replace('new_item_', ''))
+                    
+                    try:
+                        # Get the original item
+                        original_item = Item.objects.get(id=item_id, is_original=True)
+                        
+                        if collection.is_collection_private:
+                            # For private collections, validate and use quantity
+                            quantity = int(value)
+                            if quantity <= 0 or quantity > original_item.quantity:
+                                messages.error(request, 
+                                    f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
+                                    extra_tags='current-page')
+                                continue
+                                
+                            # Add item to collection with specified quantity
+                            collection.add_item(original_item, quantity)
+                            messages.success(request, 
+                                f"Added {quantity} of {original_item.name} to collection",
+                                extra_tags='current-page')
+                        else:
+                            # For public collections, ignore quantity - just add a reference
+                            collection.add_item(original_item, 0)
+                            messages.success(request, 
+                                f"Added {original_item.name} to collection",
+                                extra_tags='current-page')
+                    except Item.DoesNotExist:
+                        messages.error(request, f"Item not found", extra_tags='current-page')
+                    except ValueError as e:
+                        messages.error(request, str(e), extra_tags='current-page')
+            
+            messages.success(request, 'Collection updated successfully.', extra_tags='current-page')
+            return redirect('borrow:collection_detail', pk=collection.pk)
     else:
-        form = CollectionForm(instance=coll,
-                          librarian=librarian if is_librarian else creator,
-                          is_librarian=is_librarian, editing=True)
-
-    return render(request, "borrow/edit_collection.html", {
-        "form": form,
-        "collection": coll,
+        form = CollectionForm(instance=collection, 
+                          librarian=librarian if is_librarian else creator, 
+                          is_librarian=is_librarian,
+                          editing=True)
+    
+    return render(request, 'borrow/edit_collection.html', {
+        'form': form,
+        'collection': collection,
+        'is_librarian': is_librarian
     })
 
 @login_required
@@ -659,35 +673,9 @@ def create_collection(request):
                           is_librarian=is_librarian)
         if form.is_valid():
             collection = form.save()
-            
-            # Handle new items - they are submitted as hidden inputs with names like "new_item_[id]"
-            for key, value in request.POST.items():
-                if key.startswith('new_item_'):
-                    item_id = int(key.replace('new_item_', ''))
-                    quantity = int(value)
-                    
-                    try:
-                        # Get the original item
-                        original_item = Item.objects.get(id=item_id, is_original=True)
-                        
-                        # Check if quantity is valid
-                        if quantity > 0 and quantity <= original_item.quantity:
-                            # Add item to collection
-                            collection.add_item(original_item, quantity)
-                            messages.success(request, 
-                                f"Added {quantity} of {original_item.name} to collection",
-                                extra_tags='current-page')
-                        else:
-                            messages.error(request, 
-                                f"Invalid quantity for {original_item.name}: {quantity}. Available: {original_item.quantity}",
-                                extra_tags='current-page')
-                    except Item.DoesNotExist:
-                        messages.error(request, f"Item not found", extra_tags='current-page')
-                    except ValueError as e:
-                        messages.error(request, str(e), extra_tags='current-page')
-            
-            messages.success(request, f"Collection '{collection.title}' created successfully.", extra_tags='current-page')
-            return redirect('borrow:manage_collections')
+            messages.success(request, f"Collection '{collection.title}' created successfully. You can now add items.", 
+                         extra_tags='current-page')
+            return redirect('borrow:edit_collection', pk=collection.pk)
     else:
         form = CollectionForm(librarian=librarian if is_librarian else patron,
                           is_librarian=is_librarian)

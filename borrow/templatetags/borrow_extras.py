@@ -16,3 +16,11 @@ def can_view_collection(collection, user):
 def class_name(obj):
     """Returns the class name of an object"""
     return obj.__class__.__name__
+
+@register.filter
+def get_item_allocation(allocations, item):
+    """Find and return item allocation for a given item"""
+    for allocation in allocations:
+        if allocation.item == item:
+            return allocation
+    return None

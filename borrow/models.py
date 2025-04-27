@@ -104,6 +104,18 @@ class Item(models.Model):
         
         return copy_item
 
+    @property
+    def collections(self):
+        """Return collections this item is part of"""
+        if self.is_original:
+            # For original items, find collections through the allocations
+            return Collections.objects.filter(
+                item_allocations__item=self
+            ).distinct()
+        else:
+            # For copy items, just return the assigned collection
+            return Collections.objects.filter(id=self.collection.id) if self.collection else Collections.objects.none()
+
 
 class SimpleItem(Item):
     
@@ -309,35 +321,66 @@ class Collections(models.Model):
         """Return all items in this collection"""
         return Item.objects.filter(collection=self, is_original=False)
     
-    def add_item(self, original_item, quantity=1):
-        """Add a copy of an item to the collection with specified quantity"""
-        # Ensure the quantity is valid
-        if quantity <= 0 or quantity > original_item.quantity:
-            raise ValueError(f"Invalid quantity. Available: {original_item.quantity}")
+    def add_item(self, original_item, quantity=0):
+        """Add an item to the collection with specified quantity"""
+        # Ensure the item is original
+        if not original_item.is_original:
+            raise ValueError("Only original items can be added to collections")
             
-        # Create a copy of the item for this collection
-        copy = original_item.create_copy_for_collection(self, quantity)
-        return copy
+        if self.is_collection_private:
+            # For private collections: validate quantity
+            if quantity <= 0 or quantity > original_item.quantity:
+                raise ValueError(f"Invalid quantity. Available: {original_item.quantity}")
+                
+            # Create a copy with allocated quantity
+            copy = original_item.create_copy_for_collection(self, quantity)
+            return copy
+        else:
+            # For public collections: Just create a reference to the original item
+            # without any specific allocation or quantity changes
+            existing = CollectionItemAllocation.objects.filter(collection=self, item=original_item).first()
+            if existing:
+                # Item is already in this collection - nothing to do
+                return existing
+            else:
+                # Create new allocation with no specific quantity (just a reference)
+                allocation = CollectionItemAllocation.objects.create(
+                    collection=self,
+                    item=original_item,
+                    allocated_quantity=0  # 0 means "use full available quantity"
+                )
+                return allocation
             
-    def remove_item(self, copy_item):
-        """Remove an item from this collection and return quantity to original"""
-        if copy_item.collection != self or copy_item.is_original:
-            raise ValueError("Item is not a copy in this collection")
+    def remove_item(self, item):
+        """Remove an item from this collection"""
+        if self.is_collection_private:
+            # For private collections: remove copy item
+            if item.collection != self or item.is_original:
+                raise ValueError("Item is not a copy in this collection")
+                
+            # Get the original and return quantity to it
+            original = item.original_item
+            if original:
+                original.quantity += item.quantity
+                original.save()
             
-        # Get the original and return quantity to it
-        original = copy_item.original_item
-        if original:
-            original.quantity += copy_item.quantity
-            original.save()
-        
-        # Store quantity for feedback message
-        quantity = copy_item.quantity
-        name = copy_item.name
-        
-        # Delete the copy
-        copy_item.delete()
-        
-        return f"Returned {quantity} of {name} to original inventory"
+            # Store quantity for feedback message
+            quantity = item.quantity
+            name = item.name
+            
+            # Delete the copy
+            item.delete()
+            
+            return f"Returned {quantity} of {name} to original inventory"
+        else:
+            # For public collections: remove the reference allocation without affecting quantities
+            try:
+                allocation = CollectionItemAllocation.objects.get(collection=self, item=item)
+                name = item.name
+                allocation.delete()
+                return f"Removed {name} from collection"
+            except CollectionItemAllocation.DoesNotExist:
+                raise ValueError("Item is not part of this collection")
 
     def can_view(self, user):
         if not self.is_collection_private:
@@ -370,20 +413,33 @@ class Collections(models.Model):
         """Return all items in this collection to their original inventory"""
         returned_items = []
         
-        for copy_item in self.collection_items.all():
-            if copy_item.original_item and not copy_item.is_original:
-                # Add quantity back to original
-                original_item = copy_item.original_item
-                original_item.quantity += copy_item.quantity
-                original_item.save()
-                
+        if self.is_collection_private:
+            # For private collections, handle copy items
+            for copy_item in self.collection_items.all():
+                if copy_item.original_item and not copy_item.is_original:
+                    # Add quantity back to original
+                    original_item = copy_item.original_item
+                    original_item.quantity += copy_item.quantity
+                    original_item.save()
+                    
+                    returned_items.append({
+                        'name': copy_item.name,
+                        'quantity': copy_item.quantity
+                    })
+                    
+                    # Delete the copy item explicitly
+                    copy_item.delete()
+        else:
+            # For public collections, just delete the allocations
+            # No need to modify quantities as we're just removing references
+            for allocation in self.item_allocations.all():
                 returned_items.append({
-                    'name': copy_item.name,
-                    'quantity': copy_item.quantity
+                    'name': allocation.item.name,
+                    'quantity': 0  # No quantity to return for public collections
                 })
                 
-                # Delete the copy item explicitly
-                copy_item.delete()
+                # Just delete the allocation
+                allocation.delete()
     
         return returned_items
 

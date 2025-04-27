@@ -27,7 +27,13 @@
               {% if item_collections %}
                   {% for collection in item_collections %}
                       {% if collection|can_view:request.user %}
-                          <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                          <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>
+                          {% if collection.is_collection_private %}
+                            (Copy with dedicated quantity)
+                          {% else %}
+                            (Reference to original)
+                          {% endif %}
+                          {% if not forloop.last %}<br>{% endif %}
                       {% endif %}
                   {% endfor %}
               {% else %}

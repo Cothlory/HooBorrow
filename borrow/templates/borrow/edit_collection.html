@@ -39,31 +39,57 @@
       <div class="mb-3">
         <h5>Current Items</h5>
         <div class="list-group">
-          {% for item in collection.items_list %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <strong>{{ item.name }}</strong>
-                <div class="input-group" style="max-width: 200px;">
-                  <input type="text" disabled
-                         value="{{ item.quantity }}"
-                         class="form-control"
-                         aria-label="Item quantity">
-                  <span class="input-group-text">of {{ item.quantity }}</span>
+          {% if collection.is_collection_private %}
+            <!-- Display items for private collections -->
+            {% for item in collection.collection_items.all %}
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ item.name }}</strong>
+                  <div class="input-group" style="max-width: 200px;">
+                    <input type="text" disabled
+                           value="{{ item.quantity }}"
+                           class="form-control"
+                           aria-label="Item quantity">
+                    <span class="input-group-text">in collection</span>
+                  </div>
                 </div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger remove-item"
+                        data-item-id="{{ item.id }}">
+                  Remove
+                </button>
+                <input type="hidden"
+                       name="remove_item_{{ item.id }}"
+                       id="remove_item_{{ item.id }}"
+                       value="0">
               </div>
-              <button type="button"
-                      class="btn btn-sm btn-outline-danger remove-item"
-                      data-item-id="{{ item.id }}">
-                Remove
-              </button>
-              <input type="hidden"
-                     name="remove_item_{{ item.id }}"
-                     id="remove_item_{{ item.id }}"
-                     value="0">
-            </div>
-          {% empty %}
-            <div class="list-group-item text-muted">No items in this collection yet.</div>
-          {% endfor %}
+            {% empty %}
+              <div class="list-group-item text-muted">No items in this collection yet.</div>
+            {% endfor %}
+          {% else %}
+            <!-- Display item allocations for public collections -->
+            {% for allocation in collection.item_allocations.all %}
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ allocation.item.name }}</strong>
+                  <div>
+                    <small>Available quantity: {{ allocation.item.quantity }}</small>
+                  </div>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger remove-item"
+                        data-item-id="{{ allocation.item.id }}">
+                  Remove
+                </button>
+                <input type="hidden"
+                       name="remove_item_{{ allocation.item.id }}"
+                       id="remove_item_{{ allocation.item.id }}"
+                       value="0">
+              </div>
+            {% empty %}
+              <div class="list-group-item text-muted">No items in this collection yet.</div>
+            {% endfor %}
+          {% endif %}
         </div>
       </div>
     </div>
@@ -158,6 +184,8 @@
         const results = document.getElementById('item-search-results');
         results.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
         
+        const isPrivateCollection = {{ collection.is_collection_private|lower }};
+        
         // Fetch items via AJAX
         fetch(`/borrow/api/items/search/?q=${encodeURIComponent(query)}`)
           .then(response => response.json())
@@ -171,33 +199,57 @@
               const resultItem = document.createElement('a');
               resultItem.href = '#';
               resultItem.className = 'list-group-item list-group-item-action';
-              resultItem.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>${item.name}</strong>
-                    <div><small>Available: ${item.available_quantity} of ${item.quantity}</small></div>
-                  </div>
-                  <div class="input-group" style="max-width: 150px;">
-                    <input type="number" class="form-control item-quantity-input" 
-                           min="1" max="${item.available_quantity}" value="1">
-                    <button class="btn btn-primary add-item-btn" type="button" 
-                            data-item-id="${item.id}" data-item-name="${item.name}">Add</button>
-                  </div>
-                </div>
-              `;
               
-              // Add click handler to the add button
-              resultItem.querySelector('.add-item-btn').addEventListener('click', function(e) {
-                e.preventDefault();
-                const quantity = parseInt(resultItem.querySelector('.item-quantity-input').value);
-                if (quantity < 1 || quantity > item.available_quantity) {
-                  alert(`Please enter a valid quantity between 1 and ${item.available_quantity}`);
-                  return;
-                }
+              if (isPrivateCollection) {
+                // For private collections: show quantity input
+                resultItem.innerHTML = `
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>${item.name}</strong>
+                      <div><small>Available: ${item.available_quantity} of ${item.quantity}</small></div>
+                    </div>
+                    <div class="input-group" style="max-width: 150px;">
+                      <input type="number" class="form-control item-quantity-input" 
+                             min="1" max="${item.available_quantity}" value="1">
+                      <button class="btn btn-primary add-item-btn" type="button" 
+                              data-item-id="${item.id}" data-item-name="${item.name}">Add</button>
+                    </div>
+                  </div>
+                `;
                 
-                addItemToCollection(item.id, item.name, quantity);
-                itemModal.hide();
-              });
+                // Add click handler for private collection items
+                resultItem.querySelector('.add-item-btn').addEventListener('click', function(e) {
+                  e.preventDefault();
+                  const quantity = parseInt(resultItem.querySelector('.item-quantity-input').value);
+                  if (quantity < 1 || quantity > item.available_quantity) {
+                    alert(`Please enter a valid quantity between 1 and ${item.available_quantity}`);
+                    return;
+                  }
+                  
+                  addItemToCollection(item.id, item.name, quantity);
+                  itemModal.hide();
+                });
+              } else {
+                // For public collections: simpler interface with no quantity input
+                resultItem.innerHTML = `
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>${item.name}</strong>
+                      <div><small>Available: ${item.available_quantity}</small></div>
+                    </div>
+                    <button class="btn btn-primary add-item-btn" type="button" 
+                            data-item-id="${item.id}" data-item-name="${item.name}">Add to Collection</button>
+                  </div>
+                `;
+                
+                // Add click handler for public collection items
+                resultItem.querySelector('.add-item-btn').addEventListener('click', function(e) {
+                  e.preventDefault();
+                  // For public collections, we pass a special value (0) to indicate "use original item"
+                  addItemToCollection(item.id, item.name, 0);
+                  itemModal.hide();
+                });
+              }
               
               results.appendChild(resultItem);
             });
@@ -223,14 +275,27 @@
         // Add visual element
         const itemElement = document.createElement('div');
         itemElement.className = 'list-group-item d-flex justify-content-between align-items-center';
-        itemElement.innerHTML = `
-          <div>
-            <strong>${itemName}</strong>
-            <div><small>Quantity: ${quantity}</small></div>
-          </div>
-          <button type="button" class="btn-close remove-new-item" aria-label="Remove" 
-                  data-item-id="${itemId}"></button>
-        `;
+        
+        const isPrivateCollection = {{ collection.is_collection_private|lower }};
+        if (isPrivateCollection) {
+          itemElement.innerHTML = `
+            <div>
+              <strong>${itemName}</strong>
+              <div><small>Quantity: ${quantity}</small></div>
+            </div>
+            <button type="button" class="btn-close remove-new-item" aria-label="Remove" 
+                    data-item-id="${itemId}"></button>
+          `;
+        } else {
+          itemElement.innerHTML = `
+            <div>
+              <strong>${itemName}</strong>
+              <div><small>Using original item quantity</small></div>
+            </div>
+            <button type="button" class="btn-close remove-new-item" aria-label="Remove" 
+                    data-item-id="${itemId}"></button>
+          `;
+        }
         
         itemElement.querySelector('.remove-new-item').addEventListener('click', function() {
           document.querySelector(`input[name="new_item_${itemId}"]`).remove();
