@@ -207,7 +207,7 @@ def add_simple_item(request):
             # ensure the chosen category is applied
             item.category = form.cleaned_data.get('category', category)
             item.save()
-            return redirect('home')
+            return redirect('borrow:manage_items')
     else:
         # pre-fill the hidden category field
         form = SimpleItemForm(initial={'category': category})
@@ -236,7 +236,7 @@ def add_complex_item(request):
             # ensure the chosen category is applied
             item.category = form.cleaned_data.get('category', category)
             item.save()
-            return redirect('home')
+            return redirect('borrow:manage_items')
     else:
         # pre-fill the hidden category field
         form = ComplexItemForm(initial={'category': category})
