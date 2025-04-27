@@ -85,26 +85,72 @@ class DetailView(generic.DetailView):
             
         return context
 
+# def borrow_item(request, pk):
+#     try:
+#         patron = Patron.objects.get(user=request.user)
+#     except Patron.DoesNotExist:
+#         return redirect('account:profile')  # Redirect if not a Patron
+    
+#     # get item from the list
+#     item = Item.objects.get(pk=pk)
+
+#     # Create a form instance with POST data if the form is submitted
+#     form = QuantityForm(request.POST or None)
+    
+#     if request.method == "POST" and form.is_valid():
+#         quantity = form.cleaned_data['quantity']
+#         borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
+#         borrow_request.save()
+#         messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
+#         return redirect('borrow:detail', pk=pk)
+
+#     return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
+
 def borrow_item(request, pk):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
         return redirect('account:profile')  # Redirect if not a Patron
     
-    # get item from the list
-    item = Item.objects.get(pk=pk)
-
-    # Create a form instance with POST data if the form is submitted
-    form = QuantityForm(request.POST or None)
+    # Get item from the list
+    item = get_object_or_404(Item, pk=pk)
     
-    if request.method == "POST" and form.is_valid():
-        quantity = form.cleaned_data['quantity']
-        borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
-        borrow_request.save()
-        messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
-        return redirect('borrow:detail', pk=pk)
-
-    return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
+    # Check if it's a simple item or complex item
+    is_simple_item = hasattr(item, 'simpleitem')
+    
+    if is_simple_item:
+        # Create a form instance with POST data if the form is submitted for Simple Items
+        form = QuantityForm(request.POST or None)
+        
+        if request.method == "POST" and form.is_valid():
+            quantity = form.cleaned_data['quantity']
+            borrow_request = BorrowRequest.objects.create(
+                borrower=patron, 
+                item=item, 
+                quantity=quantity, 
+                date=timezone.now()
+            )
+            borrow_request.save()
+            messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
+            return redirect('borrow:detail', pk=pk)
+        
+        return render(request, 'borrow/borrow.html', {'form': form, 'item': item, 'is_simple_item': True})
+    
+    else:
+        # For complex items - no quantity needed
+        if request.method == "POST":
+            # Default quantity to 1 for complex items
+            borrow_request = BorrowRequest.objects.create(
+                borrower=patron, 
+                item=item, 
+                quantity=1,  # Default quantity for complex items
+                date=timezone.now()
+            )
+            borrow_request.save()
+            messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
+            return redirect('borrow:detail', pk=pk)
+        
+        return render(request, 'borrow/borrow.html', {'item': item, 'is_simple_item': False})
 
 
 def approve_requests(request):
