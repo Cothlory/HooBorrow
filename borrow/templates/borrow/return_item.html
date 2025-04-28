@@ -2,45 +2,63 @@
 
 {% block content %}
 <div class="container mt-4 mb-5">
-    <h2>Return Item</h2>
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            Item Details
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h4 mb-0">Return Item</h2>
         </div>
         <div class="card-body">
-            <h5 class="card-title">{{ borrowed_item.item.name }}</h5>
-            <p class="card-text">
-                <strong>Borrower:</strong> {{ borrowed_item.borrower.name }}<br>
-                <strong>Current Quantity Borrowed:</strong> {{ borrowed_item.quantity }}<br>
-                <strong>Due Date:</strong> {{ borrowed_item.due_date|date:"F j, Y, g:i a" }}<br>
-                <strong>Status:</strong> 
-                {% if borrowed_item.is_late %}
-                <span class="text-danger">OVERDUE</span>
-                {% else %}
-                <span class="text-success">On Time</span>
-                {% endif %}
-            </p>
+          <h5 class="card-title">{{ borrowed_item.item.name }}</h5>
+          <p class="card-text">
+            <strong>Borrower:</strong> {{ borrowed_item.borrower.name }}<br>
+            <strong>Current Quantity Borrowed:</strong> {{ borrowed_item.quantity }}<br>
+            <strong>Due Date:</strong> {{ borrowed_item.due_date|date:"F j, Y, g:i a" }}<br>
+            <strong>Status:</strong>
+            {% if borrowed_item.is_late %}
+              <span class="badge bg-danger">OVERDUE</span>
+            {% else %}
+              <span class="badge bg-success">On Time</span>
+            {% endif %}
+          </p>
+
+          <form method="post" action="{% url 'borrow:return_item' borrowed_item.id %}">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label for="quantity" class="form-label">Quantity to Return:</label>
+              <input type="number" class="form-control" id="quantity" name="quantity"
+                    min="1" max="{{ borrowed_item.quantity }}" value="{{ borrowed_item.quantity }}" required>
+              <small class="form-text text-muted">You can return between 1 and {{ borrowed_item.quantity }} items.</small>
+            </div>
+            
+            {% if borrowed_item.item_type == 'COMPLEX' %}
+            <div class="mb-3">
+              <label for="return_condition" class="form-label">Item Condition Upon Return:</label>
+              <select class="form-control" id="return_condition" name="return_condition">
+                <option value="NEW">New</option>
+                <option value="GOOD" selected>Good</option>
+                <option value="FAIR">Fair</option>
+                <option value="POOR">Poor</option>
+              </select>
+              <small class="form-text text-muted">Please assess the current condition of the item.</small>
+            </div>
+            {% endif %}
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+              {% if user.patron == borrowed_item.borrower %}
+                <a href="{% url 'borrow:my_borrowed_items' %}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+              {% else %}
+                <a href="{% url 'borrow:all_borrowed_items' %}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+              {% endif %}
+              <button type="submit" class="btn btn-primary">Confirm Return</button>
+            </div>
+          </form>
         </div>
+      </div>
     </div>
-    
-    <form method="post" action="{% url 'borrow:return_item' borrowed_item.id %}">
-        {% csrf_token %}
-        
-        <div class="form-group">
-            <label for="quantity">Quantity to Return:</label>
-            <input type="number" class="form-control" id="quantity" name="quantity" 
-                   min="1" max="{{ borrowed_item.quantity }}" value="{{ borrowed_item.quantity }}" required>
-            <small class="form-text text-muted">You can return between 1 and {{ borrowed_item.quantity }} items.</small>
-        </div>
-        
-        <button type="submit" class="btn btn-primary mt-3">Confirm Return</button>
-        
-        {% if user.patron == borrowed_item.borrower %}
-            <a href="{% url 'borrow:my_borrowed_items' %}" class="btn btn-secondary mt-3">Cancel</a>
-        {% else %}
-            <a href="{% url 'borrow:all_borrowed_items' %}" class="btn btn-secondary mt-3">Cancel</a>
-        {% endif %}
-    </form>
+  </div>
 </div>
+
+<div class="pb-4"></div>
 {% endblock %}
