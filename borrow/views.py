@@ -708,11 +708,35 @@ def request_collection(request, pk):
     form = CollectionRequestForm(request.POST or None)
     
     if request.method == "POST" and form.is_valid():
-        notes = form.cleaned_data['notes']
-        collection_request = CollectionRequest.objects.create(user=patron, collection=collection, notes=notes, date= timezone.now())
-        print(request)
-        collection_request.save()
-        messages.success(request, 'Your request to join this collection has been sent to the librarian.', extra_tags='current-page')
+        # Check if the patron already has an approved or pending request for this collection
+        existing_request = CollectionRequest.objects.filter(
+            user=patron, 
+            collection=collection, 
+            status__in=['PENDING']
+        ).exists()
+        
+        # Only create a new request if there's no existing approved or pending request
+        if not existing_request:
+            notes = form.cleaned_data['notes']
+            collection_request = CollectionRequest.objects.create(
+                user=patron, 
+                collection=collection, 
+                notes=notes, 
+                date=timezone.now()
+            )
+            collection_request.save()
+            messages.success(
+                request, 
+                'Your request to join this collection has been sent to the librarian.', 
+                extra_tags='current-page'
+            )
+        else:
+            messages.warning(
+                request, 
+                'You already have a pending request for this collection.', 
+                extra_tags='current-page'
+            )
+        
         return redirect('borrow:collection_detail', pk=pk)
 
     return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
