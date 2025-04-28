@@ -1,27 +1,84 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Approve Collection Requests</h2>
+<div class="container mt-5">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Approve Collection Requests</h3>
+            <span class="badge bg-light text-primary">{{ collection_requests|length }} pending request{% if collection_requests|length != 1 %}s{% endif %}</span>
+        </div>
+        
+        <div class="card-body">
+            {% if collection_requests %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Collection</th>
+                                <th>Date Requested</th>
+                                <th>Reason to Join</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for collection_request in collection_requests %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="ms-2">
+                                                <h6 class="mb-0">{{ collection_request.user.name }}</h6>
+                                                <small class="text-muted">{{ collection_request.user.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'borrow:collection_detail' collection_request.collection.id %}" class="text-decoration-none">
+                                            {{ collection_request.collection.title }}
+                                        </a>
+                                        {% if collection_request.collection.is_collection_private %}
+                                            <span class="badge bg-warning text-dark ms-1">Private</span>
+                                        {% else %}
+                                            <span class="badge bg-success ms-1">Public</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ collection_request.request_date|date:"M d, Y" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if collection_request.notes %}
+                                            <div class="notes-content" style="max-width: 250px; overflow-wrap: break-word;">
+                                                {{ collection_request.notes }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No reason provided</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="POST" class="d-flex justify-content-center gap-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="request_id" value="{{ collection_request.id }}">
+                                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">
+                                                <i class="bi bi-check-circle me-1"></i> Approve
+                                            </button>
+                                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">
+                                                <i class="bi bi-x-circle me-1"></i> Reject
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h4 class="mt-3">All caught up!</h4>
+                    <p class="lead text-muted">There are no pending collection join requests to approve.</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
-
-    {% if collection_requests %}
-        {% for collection_request in collection_requests %}
-            <div>
-                <p>{{ collection_request.user.name }} requested to join {{ collection_request.collection.title }}</p>
-                <p> Reason to Join: {{ collection_request.notes }} </p>
-                
-                <form method="POST">
-                    {% csrf_token %}
-                    <input type="hidden" name="request_id" value="{{ collection_request.id }}">
-                    <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
-                </form>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p class="lead">No requests to approve.</p>
-    {% endif %}
 </div>
 {% endblock %}
