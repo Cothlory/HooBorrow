@@ -1,54 +1,132 @@
 {% extends 'base.html' %}
 
-{% block title %}My Collections | HooBorrow{% endblock %}
+{% block title %}Collections | HooBorrow{% endblock %}
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>My Collections</h2>
+    {% if is_librarian %}
+      <h2>Manage Collections</h2>
+    {% else %}
+      <h2>My Collections</h2>
+    {% endif %} 
+
     <a href="{% url 'borrow:create_collection' %}" class="btn btn-success">Create New Collection</a>
   </div>
-  <ul class="list-group">
-    {% for collection in collections %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div>
-          <strong>{{ collection.title }}</strong>: {{ collection.description }}
-          {% if collection.is_collection_private %}
-            <span class="badge bg-warning text-dark">Private</span>
-          {% else %}
-            <span class="badge bg-success">Public</span>
-          {% endif %}
-        </div>
-        <div>
-          <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ collection.pk }}">Delete</button>
-          <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
-        </div>
-      </li>
-      
-      <div class="modal fade" id="deleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ collection.pk }}" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="deleteModalLabel{{ collection.pk }}">Delete Collection</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+  
+  <!-- Nav tabs -->
+  <ul class="nav nav-tabs mb-3" id="collectionsTab" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="available-tab" data-bs-toggle="tab" data-bs-target="#available" type="button" role="tab" aria-controls="available" aria-selected="true">Available Collections</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="created-tab" data-bs-toggle="tab" data-bs-target="#created" type="button" role="tab" aria-controls="created" aria-selected="false">Created Collections</button>
+    </li>
+  </ul>
+
+  <!-- Tab content -->
+  <div class="tab-content" id="collectionsTabContent">
+    <!-- Available Collections Tab -->
+    <div class="tab-pane fade show active" id="available" role="tabpanel" aria-labelledby="available-tab">
+      <ul class="list-group">
+        {% for collection in joined_collections %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ collection.title }}</strong>: {{ collection.description }}
+              {% if collection.is_collection_private %}
+                <span class="badge bg-warning text-dark">Private</span>
+              {% else %}
+                <span class="badge bg-success">Public</span>
+              {% endif %}
+              <small class="text-muted">Created by: {{ collection.creator.user.username }}</small>
             </div>
-            <div class="modal-body">
-              Are you sure you want to delete the collection "{{ collection.title }}"?
+            <div>
+              {% if is_librarian %}
+                <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#availableDeleteModal{{ collection.pk }}">Delete</button>
+              {% endif %}
+              <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <form method="post" action="{% url 'borrow:delete_collection' collection.pk %}" style="display: inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger">Delete</button>
-              </form>
+          </li>
+          
+          {% if is_librarian %}
+          <div class="modal fade" id="availableDeleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="availableDeleteModalLabel{{ collection.pk }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="availableDeleteModalLabel{{ collection.pk }}">Delete Collection</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  Are you sure you want to delete the collection "{{ collection.title }}"?
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <form method="post" action="{% url 'borrow:delete_collection' collection.pk %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-      
-      {% empty %}
-      <p class="lead">You don't have collections yet.</p>
-    {% endfor %}
-  </ul>
+          {% endif %}
+        {% empty %}
+          <p class="lead">There are no available collections yet.</p>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Created Collections Tab -->
+    <div class="tab-pane fade" id="created" role="tabpanel" aria-labelledby="created-tab">
+      <ul class="list-group">
+        {% for collection in my_collections %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ collection.title }}</strong>: {{ collection.description }}
+              {% if collection.is_collection_private %}
+                <span class="badge bg-warning text-dark">Private</span>
+              {% else %}
+                <span class="badge bg-success">Public</span>
+              {% endif %}
+            </div>
+            <div>
+              {% if is_librarian or collection.creator.user == request.user %}
+                <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#createdDeleteModal{{ collection.pk }}">Delete</button>
+              {% endif %}
+              <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+            </div>
+          </li>
+          
+          <div class="modal fade" id="createdDeleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="createdDeleteModalLabel{{ collection.pk }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="createdDeleteModalLabel{{ collection.pk }}">Delete Collection</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  Are you sure you want to delete the collection "{{ collection.title }}"?
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <form method="post" action="{% url 'borrow:delete_collection' collection.pk %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {% empty %}
+          <p class="lead">You don't have any created collections yet.</p>
+        {% endfor %}
+      </ul>
+    </div>
+
+  </div>
+
 </div>
 {% endblock %}

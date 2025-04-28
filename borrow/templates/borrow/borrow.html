@@ -1,22 +1,87 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Borrow {{ item.name }}</h2>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Borrow Item: {{ item.name }}</h4>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            {% if item.photo %}
+                                <img src="{{ item.photo.url }}" class="img-fluid rounded" alt="{{ item.name }}">
+                            {% else %}
+                                <div class="bg-light rounded d-flex justify-content-center align-items-center" style="height: 180px;">
+                                    <span class="text-muted">No image available</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <h5 class="card-title mb-3">{{ item.name }}</h5>
+                            <p class="card-text">
+                                {% if item.instructions %}
+                                    <div class="mb-2"><strong>Instructions:</strong> {{ item.instructions }}</div>
+                                {% endif %}
+                                
+                                <div class="mb-2"><strong>Location:</strong> <span class="badge bg-info text-dark">{{ item.location }}</span></div>
+                                
+                                {% if is_simple_item %}
+                                    <div class="mb-2">
+                                        <strong>Available Quantity:</strong> 
+                                        <span class="badge bg-success">{{ item.simpleitem.quantity }} available</span>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if is_complex_item %}
+                                    <div class="mb-2">
+                                        <strong>Condition:</strong> 
+                                        <span class="badge {% if item.complexitem.condition == 'Excellent' or item.complexitem.condition == 'Good' %}bg-success{% elif item.complexitem.condition == 'Fair' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            {{ item.complexitem.condition }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-group mb-4">
+                            {% if is_simple_item %}
+                                <label for="{{ form.quantity.id_for_label }}" class="form-label fw-bold">Quantity to Borrow:</label>
+                                {{ form.quantity.errors }}
+                                <div class="input-group">
+                                    {{ form.quantity }}
+                                    <span class="input-group-text">items</span>
+                                </div>
+                                <div class="form-text">You can borrow up to {{ item.simpleitem.quantity }} items.</div>
+                            {% else %}
+                                <label class="form-label fw-bold">Quantity to Borrow:</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" value="1" disabled>
+                                    <span class="input-group-text">item</span>
+                                </div>
+                                <div class="form-text">Individual items can only be borrowed one at a time.</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'borrow:detail' item.id %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Submit Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    {% if user.is_authenticated %}
-        <form method="POST">
-        {% csrf_token %}
-        
-        <label for="id_quantity">Quantity:</label>
-        {{ form.quantity }}
-
-        <button type="submit" class="btn btn-primary">Borrow Item</button>
-        </form>
-    {% else %}
-        <p>You need to be logged in to borrow this item.</p>
-    {% endif %}
 </div>
 {% endblock %}

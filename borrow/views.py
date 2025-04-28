@@ -20,27 +20,97 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
+        # Always return items queryset for the main list
         qs = Item.objects.all().order_by('name')
-        cat = self.request.GET.get('category')
-        if cat in dict(Item.CATEGORY_CHOICES):
-            qs = qs.filter(category=cat)
-        q = self.request.GET.get("q", "").strip()
-        if q:
-            qs = qs.filter(
-                Q(name__icontains=q)
-                | Q(location__icontains=q)
-                | Q(instructions__icontains=q)
-            )
+        
+        # Get the active tab
+        tab = self.request.GET.get('tab', 'items')
+        
+        # Only apply item filters if we're on the items tab or no tab is specified
+        if tab != 'collections':
+            # Category filtering
+            cat = self.request.GET.get('category')
+            if cat in dict(Item.CATEGORY_CHOICES):
+                qs = qs.filter(category=cat)
+            
+            # Search filtering
+            q = self.request.GET.get("q", "").strip()
+            if q:
+                qs = qs.filter(
+                    Q(name__icontains=q)
+                    | Q(location__icontains=q)
+                    | Q(instructions__icontains=q)
+                )
+            
+            # Add minimum quantity filtering
+            min_quantity = self.request.GET.get('min_quantity')
+            if min_quantity:
+                try:
+                    min_quantity = int(min_quantity)
+                    qs = qs.filter(quantity__gte=min_quantity)
+                except ValueError:
+                    pass
+            
+            # Add item type filtering
+            item_type = self.request.GET.get('item_type')
+            if item_type == 'simple':
+                # Filter for SimpleItems
+                qs = qs.filter(simpleitem__isnull=False)
+            elif item_type == 'complex':
+                # Filter for ComplexItems
+                qs = qs.filter(complexitem__isnull=False)
+                
+                # Add condition filtering for complex items
+                condition = self.request.GET.get('condition')
+                if condition:
+                    # Use complexitem__condition to filter by condition
+                    qs = qs.filter(complexitem__condition=condition)
+        
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get current tab
+        context['current_tab'] = self.request.GET.get('tab', 'items')
+        
+        # Always include item context
+        context['q'] = self.request.GET.get('q', '')
+        context['current_category'] = self.request.GET.get('category', '')
+        context['min_quantity'] = self.request.GET.get('min_quantity', '1')
+        context['item_type'] = self.request.GET.get('item_type', '')
+        context['condition'] = self.request.GET.get('condition', '')
+        
+        # Always include collection context
+        context['collection_q'] = self.request.GET.get('collection_q', '')
+        context['collection_visibility'] = self.request.GET.get('collection_visibility', '')
+        
+        # Add collections_list to context
+        collections = Collections.objects.all()
+        
+        # Apply collection filters if on collections tab
+        if context['current_tab'] == 'collections':
+            if context['collection_q']:
+                collections = collections.filter(
+                    Q(title__icontains=context['collection_q']) |
+                    Q(description__icontains=context['collection_q'])
+                )
+            
+            if context['collection_visibility'] == 'public':
+                collections = collections.filter(is_collection_private=False)
+            elif context['collection_visibility'] == 'private':
+                collections = collections.filter(is_collection_private=True)
+        
+        # Filter private collections based on permissions
+        if not self.request.user.is_authenticated:
+            collections = collections.filter(is_collection_private=False)
+        
+        context['collections_list'] = collections
+        
+        # Add other context
         context['CategoryChoices'] = Item.CATEGORY_CHOICES
-        context['current_category'] = self.request.GET.get('category','')
-        if self.request.user.is_authenticated:
-            context['collections_list'] = Collections.objects.all().order_by("title")
-        else:
-            context['collections_list'] = Collections.objects.filter(is_collection_private=False).order_by("title")
+        context['ConditionChoices'] = ComplexItem.CONDITION_CHOICES
+        
         return context
 
 
@@ -57,7 +127,7 @@ class DetailView(generic.DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         item = self.get_object()
-        borrowed_items = BorrowedItem.objects.filter(item=item)
+        borrowed_items = BorrowedItem.objects.filter(item=item, returned=False)
         borrowers_info = []
         for borrowed_item in borrowed_items:
             borrowers_info.append({
@@ -69,6 +139,7 @@ class DetailView(generic.DetailView):
         context['borrowers_info'] = borrowers_info
         reviews = item.reviews.all().order_by('-created_at')
         context['reviews'] = reviews
+        context['is_complex_item'] = hasattr(item, 'complexitem')
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
@@ -91,22 +162,50 @@ def borrow_item(request, pk):
     except Patron.DoesNotExist:
         return redirect('account:profile')  # Redirect if not a Patron
     
-    # get item from the list
-    item = Item.objects.get(pk=pk)
-    print(item)
-
-    # Create a form instance with POST data if the form is submitted
-    form = QuantityForm(request.POST or None)
+    # Get item from the list
+    item = get_object_or_404(Item, pk=pk)
     
-    if request.method == "POST" and form.is_valid():
-        quantity = form.cleaned_data['quantity']
-        borrow_request = BorrowRequest.objects.create(borrower=patron, item=item, quantity=quantity, date= timezone.now())
-        print(request)
-        borrow_request.save()
-        messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
-        return redirect('borrow:detail', pk=pk)
-
-    return render(request, 'borrow/borrow.html', {'form': form, 'item': item})
+    # Check if it's a simple item or complex item
+    is_simple_item = hasattr(item, 'simpleitem')
+    is_complex_item = hasattr(item, 'complexitem')
+    
+    if is_simple_item:
+        # Create a form instance with POST data if the form is submitted for Simple Items
+        form = QuantityForm(request.POST or None)
+        
+        if request.method == "POST" and form.is_valid():
+            quantity = form.cleaned_data['quantity']
+            borrow_request = BorrowRequest.objects.create(
+                borrower=patron, 
+                item=item, 
+                quantity=quantity, 
+                date=timezone.now()
+            )
+            borrow_request.save()
+            messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
+            return redirect('borrow:detail', pk=pk)
+        
+        return render(request, 'borrow/borrow.html', {'form': form, 'item': item, 'is_simple_item': True})
+    
+    else:
+        # For complex items - no quantity needed
+        if request.method == "POST":
+            # Default quantity to 1 for complex items
+            borrow_request = BorrowRequest.objects.create(
+                borrower=patron, 
+                item=item, 
+                quantity=1,  # Default quantity for complex items
+                date=timezone.now()
+            )
+            borrow_request.save()
+            messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
+            return redirect('borrow:detail', pk=pk)
+        
+        return render(request, 'borrow/borrow.html', {
+            'item': item, 
+            'is_simple_item': is_simple_item, 
+            'is_complex_item': is_complex_item
+        })
 
 
 def approve_requests(request):
@@ -136,12 +235,12 @@ def approve_requests(request):
                 try:
                     # Try to get the item as a SimpleItem
                     simple_item = SimpleItem.objects.get(id=item.id)
-                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity)
+                    success = borrow_request.borrower.borrow_simple_item(simple_item, borrow_request.quantity, simple_item.days_to_return)
                 except SimpleItem.DoesNotExist:
                     # If it's not a SimpleItem, try ComplexItem
                     try:
                         complex_item = ComplexItem.objects.get(id=item.id)
-                        success = borrow_request.borrower.borrow_complex_item(complex_item)
+                        success = borrow_request.borrower.borrow_complex_item(complex_item, complex_item.days_to_return)
                     except ComplexItem.DoesNotExist:
                         messages.error(request, f"Item {item.name} not found in either Simple or Complex categories.", extra_tags='current-page')
                         return redirect('borrow:approve_requests')
@@ -174,22 +273,22 @@ def add_item(request):
         Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
-
+    
     if request.method == 'POST':
-        # Grab the selected category from the form POST
+        # Grab the selected category and item type from the form POST
         category = request.POST.get('category', Item.CATEGORY_OTHER)
-
-        # Redirect to the appropriate form, appending ?category=
-        if category == Item.CATEGORY_BALLS:
+        item_type = request.POST.get('item_type', 'complex')  # Default to complex (individual) items
+        
+        # Redirect to the appropriate form, appending query parameters
+        if item_type == 'simple':
             return redirect(f"{reverse('borrow:add_simple_item')}?category={category}")
         else:
             return redirect(f"{reverse('borrow:add_complex_item')}?category={category}")
-
-    # GET: render the chooser with the category options
+    
+    # Render the chooser with both item type and category options
     return render(request, 'borrow/choose_item_type.html', {
         'CategoryChoices': Item.CATEGORY_CHOICES
     })
-
 
 @login_required
 def add_simple_item(request):
@@ -209,7 +308,7 @@ def add_simple_item(request):
             # ensure the chosen category is applied
             item.category = form.cleaned_data.get('category', category)
             item.save()
-            return redirect('home')
+            return redirect('borrow:manage_items')
     else:
         # pre-fill the hidden category field
         form = SimpleItemForm(initial={'category': category})
@@ -238,7 +337,7 @@ def add_complex_item(request):
             # ensure the chosen category is applied
             item.category = form.cleaned_data.get('category', category)
             item.save()
-            return redirect('home')
+            return redirect('borrow:manage_items')
     else:
         # pre-fill the hidden category field
         form = ComplexItemForm(initial={'category': category})
@@ -303,13 +402,15 @@ def manage_collections(request):
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
     
-    if is_librarian:
-        collections = Collections.objects.all().order_by("title")
-    else:
-        collections = Collections.objects.filter(creator=creator).order_by("title")
-    
+    my_collections = []
+    joined_collections = []
+
+    my_collections = Collections.objects.filter(creator=creator).order_by("title")
+    joined_collections = Collections.objects.filter(allowed_users=creator).order_by("title")
+
     return render(request, 'borrow/manage_collections.html', {
-        'collections': collections,
+        'my_collections': my_collections,
+        'joined_collections': joined_collections,
         'is_librarian': is_librarian,
     })
 
@@ -388,6 +489,7 @@ def delete_collection(request, pk):
         messages.success(request, f"Collection '{collection_title}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_collections")
     return redirect("borrow:manage_collections")
+
 
 class CollectionDetailView(generic.DetailView):
     model = Collections
@@ -525,10 +627,26 @@ def return_item(request, borrowed_item_id):
         else: 
             try:
                 complex_item = ComplexItem.objects.get(id=item.id)
+                
+                # Get the condition assessment if this is a ComplexItem
+                return_condition = request.POST.get('return_condition')
+                
                 if is_borrower:
+                    # Update the borrower's return method to handle condition
                     success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
+                    
+                    # Update condition after return if worse than before
+                    if return_condition and success:
+                        # Update the condition based on the selected value
+                        complex_item.condition = return_condition
+                        complex_item.save()
                 else: 
                     complex_item.quantity += quantity_to_return
+                    
+                    # Update condition based on what was selected in the form
+                    if return_condition:
+                        complex_item.condition = return_condition
+                    
                     complex_item.save()
                     
                     borrowed_item.quantity -= quantity_to_return
@@ -606,15 +724,39 @@ def request_collection(request, pk):
     form = CollectionRequestForm(request.POST or None)
     
     if request.method == "POST" and form.is_valid():
-        notes = form.cleaned_data['notes']
-        collection_request = CollectionRequest.objects.create(user=patron, collection=collection, notes=notes, date= timezone.now())
-        print(request)
-        collection_request.save()
-        messages.success(request, 'Your request to join this collection has been sent to the librarian.', extra_tags='current-page')
+        # Check if the patron already has an approved or pending request for this collection
+        existing_request = CollectionRequest.objects.filter(
+            user=patron, 
+            collection=collection, 
+            status__in=['PENDING']
+        ).exists()
+        
+        # Only create a new request if there's no existing approved or pending request
+        if not existing_request:
+            notes = form.cleaned_data['notes']
+            collection_request = CollectionRequest.objects.create(
+                user=patron, 
+                collection=collection, 
+                notes=notes, 
+                date=timezone.now()
+            )
+            collection_request.save()
+            messages.success(
+                request, 
+                'Your request to join this collection has been sent to the librarian.', 
+                extra_tags='current-page'
+            )
+        else:
+            messages.warning(
+                request, 
+                'You already have a pending request for this collection.', 
+                extra_tags='current-page'
+            )
+        
         return redirect('borrow:collection_detail', pk=pk)
 
     return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
-
+    
 @login_required
 def create_collection(request):
     try:
@@ -623,7 +765,7 @@ def create_collection(request):
     except Librarian.DoesNotExist:
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
-
+    
     if request.method == "POST":
         form = CollectionForm(request.POST, librarian=creator, is_librarian=is_librarian)
         if form.is_valid():
@@ -633,18 +775,12 @@ def create_collection(request):
                 existing = Collections.objects.filter(items_list=item)
                 if form.cleaned_data.get('is_collection_private'):
                     if existing.exists():
-                        errs.append(
-                            f"‘{item.name}’ is already in “{existing.first().title}”; "
-                            "private collections must be disjoint."
-                        )
+                        errs.append(f"'{item.name}' is already in '{existing.first().title}'; private collections must be disjoint.")
                 else:
                     priv = existing.filter(is_collection_private=True).first()
                     if priv:
-                        errs.append(
-                            f"‘{item.name}’ lives in private “{priv.title}”; "
-                            "public collections cannot include it."
-                        )
-
+                        errs.append(f"'{item.name}' lives in private '{priv.title}'; public collections cannot include it.")
+            
             if errs:
                 for e in errs:
                     messages.error(request, e, extra_tags='current-page')
@@ -654,16 +790,30 @@ def create_collection(request):
                     coll.is_collection_private = False
                 coll.save()
                 form.save_m2m()
+                
+                if coll.is_collection_private: 
+                    # Get all users who are librarians
+                    librarian_users = Librarian.objects.all()
+                    # Add all librarian patrons to the collection's allowed_users
+                    coll.allowed_users.add(*librarian_users)
+                    coll.allowed_users.add(creator)
+                else:
+                    patron_users = Patron.objects.all()
+                    coll.allowed_users.add(*patron_users)
+                    coll.allowed_users.add(creator)
+                    
+                
                 messages.success(request, f"Collection '{coll.title}' created.", extra_tags='current-page')
                 return redirect('borrow:manage_collections')
     else:
         form = CollectionForm(librarian=creator, is_librarian=is_librarian)
-
+    
     return render(request, 'borrow/create_collection.html', {
         'form': form,
         'is_librarian': is_librarian,
     })
 
+    
 @login_required
 def manage_items(request):
     try:
@@ -715,3 +865,24 @@ def edit_item(request, pk):
         'form': form,
         'item': item,
     })
+
+@login_required
+def delete_item(request, pk):
+    try:
+        librarian = Librarian.objects.get(user=request.user)
+        is_librarian = True
+    except Librarian.DoesNotExist:
+        creator = Patron.objects.get(user=request.user)
+        is_librarian = False
+    
+    if is_librarian:
+        item = get_object_or_404(Item, pk=pk)
+    else:
+        item = get_object_or_404(Item, pk=pk, creator=creator)
+    
+    if request.method == "POST":
+        item_name = item.name
+        item.delete()
+        messages.success(request, f"Item '{item_name}' deleted successfully.", extra_tags='current-page')
+        return redirect("borrow:manage_items")
+    return redirect("borrow:manage_items")
