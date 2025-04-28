@@ -20,27 +20,97 @@ class IndexView(generic.ListView):
     context_object_name = "borrow_items_list"
 
     def get_queryset(self):
+        # Always return items queryset for the main list
         qs = Item.objects.all().order_by('name')
-        cat = self.request.GET.get('category')
-        if cat in dict(Item.CATEGORY_CHOICES):
-            qs = qs.filter(category=cat)
-        q = self.request.GET.get("q", "").strip()
-        if q:
-            qs = qs.filter(
-                Q(name__icontains=q)
-                | Q(location__icontains=q)
-                | Q(instructions__icontains=q)
-            )
+        
+        # Get the active tab
+        tab = self.request.GET.get('tab', 'items')
+        
+        # Only apply item filters if we're on the items tab or no tab is specified
+        if tab != 'collections':
+            # Category filtering
+            cat = self.request.GET.get('category')
+            if cat in dict(Item.CATEGORY_CHOICES):
+                qs = qs.filter(category=cat)
+            
+            # Search filtering
+            q = self.request.GET.get("q", "").strip()
+            if q:
+                qs = qs.filter(
+                    Q(name__icontains=q)
+                    | Q(location__icontains=q)
+                    | Q(instructions__icontains=q)
+                )
+            
+            # Add minimum quantity filtering
+            min_quantity = self.request.GET.get('min_quantity')
+            if min_quantity:
+                try:
+                    min_quantity = int(min_quantity)
+                    qs = qs.filter(quantity__gte=min_quantity)
+                except ValueError:
+                    pass
+            
+            # Add item type filtering
+            item_type = self.request.GET.get('item_type')
+            if item_type == 'simple':
+                # Filter for SimpleItems
+                qs = qs.filter(simpleitem__isnull=False)
+            elif item_type == 'complex':
+                # Filter for ComplexItems
+                qs = qs.filter(complexitem__isnull=False)
+                
+                # Add condition filtering for complex items
+                condition = self.request.GET.get('condition')
+                if condition:
+                    # Use complexitem__condition to filter by condition
+                    qs = qs.filter(complexitem__condition=condition)
+        
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get current tab
+        context['current_tab'] = self.request.GET.get('tab', 'items')
+        
+        # Always include item context
+        context['q'] = self.request.GET.get('q', '')
+        context['current_category'] = self.request.GET.get('category', '')
+        context['min_quantity'] = self.request.GET.get('min_quantity', '1')
+        context['item_type'] = self.request.GET.get('item_type', '')
+        context['condition'] = self.request.GET.get('condition', '')
+        
+        # Always include collection context
+        context['collection_q'] = self.request.GET.get('collection_q', '')
+        context['collection_visibility'] = self.request.GET.get('collection_visibility', '')
+        
+        # Add collections_list to context
+        collections = Collections.objects.all()
+        
+        # Apply collection filters if on collections tab
+        if context['current_tab'] == 'collections':
+            if context['collection_q']:
+                collections = collections.filter(
+                    Q(title__icontains=context['collection_q']) |
+                    Q(description__icontains=context['collection_q'])
+                )
+            
+            if context['collection_visibility'] == 'public':
+                collections = collections.filter(is_collection_private=False)
+            elif context['collection_visibility'] == 'private':
+                collections = collections.filter(is_collection_private=True)
+        
+        # Filter private collections based on permissions
+        if not self.request.user.is_authenticated:
+            collections = collections.filter(is_collection_private=False)
+        
+        context['collections_list'] = collections
+        
+        # Add other context
         context['CategoryChoices'] = Item.CATEGORY_CHOICES
-        context['current_category'] = self.request.GET.get('category','')
-        if self.request.user.is_authenticated:
-            context['collections_list'] = Collections.objects.all().order_by("title")
-        else:
-            context['collections_list'] = Collections.objects.filter(is_collection_private=False).order_by("title")
+        context['ConditionChoices'] = ComplexItem.CONDITION_CHOICES
+        
         return context
 
 

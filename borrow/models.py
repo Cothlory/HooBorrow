@@ -79,7 +79,24 @@ class SimpleItem(Item):
         return self.name
 
 class ComplexItem(Item):
-    condition = models.CharField(max_length=200)
+    NEW_CONDITION   = 'NEW'
+    GOOD_CONDITION  = 'GOOD'
+    FAIR_CONDITION    = 'FAIR'
+    POOR_CONDITION   = 'POOR'
+    OTHER_CONDITION = 'OTHER'
+
+    CONDITION_CHOICES = [
+        (NEW_CONDITION,  'New'),
+        (GOOD_CONDITION, 'Good'),
+        (FAIR_CONDITION,   'Fair'),
+        (POOR_CONDITION,  'Poor'),
+    ]
+
+    condition = models.CharField(
+        max_length=10,
+        choices=CONDITION_CHOICES,
+        default=OTHER_CONDITION,
+    )
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)
