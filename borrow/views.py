@@ -273,22 +273,22 @@ def add_item(request):
         Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
         return HttpResponseForbidden("You are not a librarian and cannot add items.")
-
+    
     if request.method == 'POST':
-        # Grab the selected category from the form POST
+        # Grab the selected category and item type from the form POST
         category = request.POST.get('category', Item.CATEGORY_OTHER)
-
-        # Redirect to the appropriate form, appending ?category=
-        if category == Item.CATEGORY_BALLS:
+        item_type = request.POST.get('item_type', 'complex')  # Default to complex (individual) items
+        
+        # Redirect to the appropriate form, appending query parameters
+        if item_type == 'simple':
             return redirect(f"{reverse('borrow:add_simple_item')}?category={category}")
         else:
             return redirect(f"{reverse('borrow:add_complex_item')}?category={category}")
-
-    # GET: render the chooser with the category options
+    
+    # Render the chooser with both item type and category options
     return render(request, 'borrow/choose_item_type.html', {
         'CategoryChoices': Item.CATEGORY_CHOICES
     })
-
 
 @login_required
 def add_simple_item(request):

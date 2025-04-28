@@ -4,7 +4,7 @@ from .models import SimpleItem, ComplexItem, Collections, Patron, Review
 class SimpleItemForm(forms.ModelForm):
     class Meta:
         model = SimpleItem
-        fields = ['name', 'quantity', 'location', 'instructions', 'photo', 'days_to_return', 'category']
+        fields = ['name', 'quantity', 'location', 'instructions', 'photo', 'days_to_return']
         widgets = {
             'category': forms.HiddenInput(),
         }
@@ -12,7 +12,7 @@ class SimpleItemForm(forms.ModelForm):
 class ComplexItemForm(forms.ModelForm):
     class Meta:
         model = ComplexItem
-        fields = ['name','location', 'instructions', 'photo', 'condition', 'days_to_return', 'category']
+        fields = ['name','location', 'instructions', 'photo', 'condition', 'days_to_return']
         widgets = {
             'category': forms.HiddenInput(),
         }
