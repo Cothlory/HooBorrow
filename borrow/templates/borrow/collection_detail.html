@@ -1,65 +1,292 @@
-{% extends "base.html" %}
-{% load static %}
-{% load borrow_extras %}
+{% extends "base.html" %} 
+{% load static %} 
+{% load borrow_extras %}  
 
-{% block title %}{{ object.title }} | HooBorrow {% endblock %}
-{% block content %}
+{% block title %}{{ object.title }} | HooBorrow {% endblock %} 
 
-<div class="container my-4 mb-5">
+{% block content %}  
+<div class="container my-4">
     <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>{{ object.title }}</h2>
-        </div>     
-        <hr>     
-        <div class="mb-3">
-            <p>Description: {{ object.description }}</p>
-        </div> 
-        <hr>  
-        <div>
-            <p>
-                Created by: {{ object.creator.name }}
-                {% if object.created_at %}
-                    on {{ object.created_at|date:"F d, Y" }} at {{ object.created_at|time:"H:i" }}
-                {% endif %}
-            </p>
-        </div>
+        <h2>{{ object.title }}</h2>
+        <p>Description: {{ object.description }}</p>
+        <p>
+            <small>Created by: {{ object.creator.name }}
+            {% if object.created_at %}
+                on {{ object.created_at|date:"F d, Y" }} at {{ object.created_at|time:"H:i" }}
+            {% endif %}</small>
+        </p>
     </div>
-    
+                    
     {% if object.is_collection_private and request.user.patron != object.creator and request.user.patron not in object.allowed_users.all and not request.user.is_librarian %}
         <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
-    {% endif %}
-    
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        {% for item in visible_items %}
-            <div class="col">
-                <div class="card h-100">
-                    {% if item.photo %}
-                        <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                    {% else %}
-                        <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                    {% endif %}
-                    <div class="card-body">
-                        <h5 class="card-title">{{ item.name }}</h5>
-                        <p class="card-text">Quantity: {{ item.quantity }}</p>
-                        <p class="card-text">Location: {{ item.location }}</p>
+    {% else %}
+        <!-- Search form -->
+        <form method="get" class="d-flex mb-4">
+            <input
+              class="form-control me-2"
+              type="search"
+              name="q"
+              placeholder="Search items…"
+              value="{{ q }}"
+              aria-label="Search">
+            <button class="btn btn-outline-primary" type="submit">Search</button>
+            {% if q %}
+                <a href="{% url 'borrow:collection_detail' object.id %}" class="btn btn-outline-secondary ms-2">Clear</a>
+            {% endif %}
+        </form>
+        
+        <!-- Active Filters Display -->
+        {% if min_quantity|default:'0' != '0' or current_category or q or item_type or condition %}
+        <div class="d-flex flex-wrap mb-3 align-items-center">
+            <span class="me-2"><strong>Active Filters:</strong></span>
+            {% if q %}
+            <span class="badge bg-info text-dark me-2 mb-1">
+                Search: {{ q }}
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                        onclick="removeFilter('q')"></button>
+            </span>
+            {% endif %}
+            {% if current_category %}
+            <span class="badge bg-info text-dark me-2 mb-1">
+                Category: 
+                {% for value,label in CategoryChoices %}
+                    {% if value == current_category %}{{ label }}{% endif %}
+                {% endfor %}
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                        onclick="removeFilter('category')"></button>
+            </span>
+            {% endif %}
+            {% if item_type %}
+            <span class="badge bg-info text-dark me-2 mb-1">
+                Type: {% if item_type == 'simple' %}Bulk Items{% else %}Individual Items{% endif %}
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                        onclick="removeFilter('item_type')"></button>
+            </span>
+            {% endif %}
+            {% if condition %}
+            <span class="badge bg-info text-dark me-2 mb-1">
+                Condition: 
+                {% for value,label in ConditionChoices %}
+                    {% if value == condition %}{{ label }}{% endif %}
+                {% endfor %}
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                        onclick="removeFilter('condition')"></button>
+            </span>
+            {% endif %}
+            {% if min_quantity|default:'0' != '0' %}
+            <span class="badge bg-info text-dark me-2 mb-1">
+                Min Quantity: {{ min_quantity }}+
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                        onclick="removeFilter('min_quantity')"></button>
+            </span>
+            {% endif %}
+            
+            {% if min_quantity|default:'0' != '0' or current_category or q or item_type or condition %}
+            <a href="{% url 'borrow:collection_detail' object.id %}" class="btn btn-sm btn-outline-secondary">
+                Clear All Filters
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="row">
+            <!-- Filters card on the left -->
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Filters</h5>
                     </div>
-                    <div class="card-footer text-center">
-                        <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                    <div class="card-body">
+                        <form method="get" id="filterForm">
+                            <!-- Preserve search query -->
+                            <input type="hidden" name="q" value="{{ q }}">
+                            
+                            <!-- Category filter -->
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <select name="category" id="category" class="form-select">
+                                    <option value="">All Categories</option>
+                                    {% for value,label in CategoryChoices %}
+                                        <option value="{{ value }}"
+                                            {% if value == current_category %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Item type filter -->
+                            <div class="mb-3">
+                                <label for="item_type" class="form-label">Item Type</label>
+                                <select name="item_type" id="item_type" class="form-select">
+                                    <option value="">All Item Types</option>
+                                    <option value="simple" {% if item_type == "simple" %}selected{% endif %}>Simple Items</option>
+                                    <option value="complex" {% if item_type == "complex" %}selected{% endif %}>Complex Items</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Condition filter (only visible when item_type=complex) -->
+                            <div class="mb-3" id="conditionFilterContainer" {% if item_type != 'complex' %}style="display: none;"{% endif %}>
+                                <label for="condition" class="form-label">Condition</label>
+                                <select name="condition" id="condition" class="form-select">
+                                    <option value="">Any Condition</option>
+                                    {% for value,label in ConditionChoices %}
+                                        <option value="{{ value }}"
+                                            {% if value == condition %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Minimum quantity filter -->
+                            <div class="mb-3">
+                                <label for="min_quantity" class="form-label">Minimum Quantity: <span id="quantityValue">{{ min_quantity|default:'0' }}</span></label>
+                                <input type="range" class="form-range" name="min_quantity" id="min_quantity" min="0" max="10" step="1" value="{{ min_quantity|default:'0' }}">
+                                <div class="d-flex justify-content-between">
+                                    <small>0 (All)</small>
+                                    <small>5</small>
+                                    <small>10+</small>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                <a href="{% url 'borrow:collection_detail' object.id %}" class="btn btn-outline-secondary">Clear Filters</a>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
-            {% empty %}
-            {% if object.is_collection_private and not object|can_view:request.user %}
-                <p></p>
-            {% else %}
-                <p class="lead">No items available to borrow.</p>
-            {% endif %}
-        {% endfor %}
-    </div>
+            
+            <!-- Items grid on the right -->
+            <div class="col-md-9">
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    {% for item in visible_items %}
+                        <div class="col">
+                            <div class="card h-100">
+                                {% if item.photo %}
+                                    <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                {% else %}
+                                    <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ item.name }}</h5>
+                                    <p class="card-text">
+                                        <span class="badge {% if item.quantity >= 5 %}bg-success{% elif item.quantity > 1 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                            Quantity: {{ item.quantity }}
+                                        </span>
+                                        {% if item.simpleitem %}
+                                        <span class="badge bg-secondary">Bulk Item</span>
+                                        {% elif item.complexitem %}
+                                        <span class="badge bg-secondary">Individual Item</span>
+                                        <span class="badge bg-secondary">Condition: {{ item.complexitem.get_condition_display }}</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="card-text">Location: {{ item.location }}</p>
+                                    <p class="card-text">
+                                        <strong>Collections:</strong>
+                                        {% with item_collections=item.collections.all %}
+                                            {% if item_collections %}
+                                                {% for collection in item_collections %}
+                                                    {% if collection|can_view_collection:request.user %}
+                                                        <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">Not in collection</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </p>
+                                </div>
+                                <div class="card-footer text-center">
+                                    <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        {% if object.is_collection_private and not object|can_view:request.user %}
+                            <p></p>
+                        {% else %}
+                            <p class="lead">No items
+                                {% if q %} matching "{{ q }}"{% endif %}
+                                {% if current_category %} in {{ current_category }}{% endif %}
+                                {% if item_type %} of type {{ item_type }}{% endif %}
+                                {% if condition %} in {{ condition }} condition{% endif %}
+                                {% if min_quantity %} with minimum quantity {{ min_quantity }}{% endif %}
+                                available to borrow.
+                            </p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
     {% if object.is_collection_private and not object|can_view:request.user %}
-        <div>
+        <div class="mt-4">
             <a href="{% url 'borrow:request_collection' object.id %}" class="btn btn-primary">Request for access</a>
         </div>
     {% endif %}
 </div>
+
+<!-- JavaScript to show/hide condition filter based on item type and update quantity slider value -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Condition filter visibility toggle
+        const itemTypeSelect = document.getElementById('item_type');
+        const conditionContainer = document.getElementById('conditionFilterContainer');
+        
+        if (itemTypeSelect && conditionContainer) {
+            itemTypeSelect.addEventListener('change', function() {
+                if (this.value === 'complex') {
+                    conditionContainer.style.display = 'block';
+                } else {
+                    conditionContainer.style.display = 'none';
+                    // Reset condition when not showing complex items
+                    document.getElementById('condition').value = '';
+                }
+            });
+        }
+        
+        // Quantity slider value display
+        const quantitySlider = document.getElementById('min_quantity');
+        const quantityValue = document.getElementById('quantityValue');
+        
+        if (quantitySlider && quantityValue) {
+            // Update on page load
+            quantityValue.textContent = quantitySlider.value;
+            
+            // Update on slider change
+            quantitySlider.addEventListener('input', function() {
+                quantityValue.textContent = this.value;
+            });
+        }
+    });
+    
+    // Remove individual filter function
+    function removeFilter(filterName) {
+        // Create a form element
+        const form = document.createElement('form');
+        form.method = 'get';
+        form.action = window.location.pathname;
+        
+        // Add all current URL parameters except the one to remove
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.delete(filterName);
+        
+        // Add remaining parameters as hidden inputs
+        for (const [key, value] of urlParams.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        // Submit the form
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
 {% endblock %}
