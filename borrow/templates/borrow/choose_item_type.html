@@ -1,22 +1,55 @@
 {% extends "base.html" %}
 
-{% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Select Item Type to Add</h2>
-  </div>
+{% block title %}Choose Item Type | HooBorrow{% endblock %}
 
-  <form method="post">
-    {% csrf_token %}
-    <div class="mb-3">
-      <label for="id_category" class="form-label">Category</label>
-      <select name="category" id="id_category" class="form-select">
-        {% for value,label in CategoryChoices %}
-          <option value="{{ value }}">{{ label }}</option>
-        {% endfor %}
-      </select>
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Add New Item</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <h5>Step 1: Choose Item Type</h5>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="item_type" id="simpleItem" value="simple">
+                                <label class="form-check-label" for="simpleItem">
+                                    <strong>Bulk Item</strong> - Multiple identical items (e.g., tennis balls, practice jerseys)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="item_type" id="complexItem" value="complex" checked>
+                                <label class="form-check-label" for="complexItem">
+                                    <strong>Individual Item</strong> - Unique item with specific condition (e.g., tennis racket, helmet)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>Step 2: Choose Category</h5>
+                            {% for value, label in CategoryChoices %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="category" id="category{{ value }}" value="{{ value }}" {% if forloop.first %}checked{% endif %}>
+                                    <label class="form-check-label" for="category{{ value }}">
+                                        {{ label }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Continue to Item Details</button>
+                            <a href="{% url 'borrow:index' %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    <button type="submit" class="btn btn-primary">Next</button>
-  </form>
 </div>
 {% endblock %}

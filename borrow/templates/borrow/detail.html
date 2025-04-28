@@ -18,6 +18,9 @@
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
     <p><strong>Instructions:</strong> {{ object.instructions }}</p>
     <p><strong>Location:</strong> {{ object.location }}</p>
+    {% if is_complex_item %}
+    <p><strong>Condition:</strong> {{ object.complexitem.condition }}</p>
+    {% endif %}
     
     <p>
       <strong>Collections:</strong>
@@ -43,7 +46,7 @@
         <p class="lead">You need to be logged in to borrow this item.</p>
     {% endif %}
     <hr>
-    <h3>Borrowers</h3>
+    <h3>Active Borrowers</h3>
     {% if borrowers_info %}
       <ul>
         {% for borrower in borrowers_info %}

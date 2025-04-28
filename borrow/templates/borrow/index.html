@@ -6,101 +6,425 @@
 {% block content %}
 <div class="container my-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Items</h2>
+        <h2>Browse</h2>
     </div>
     
-    <form method="get" class="d-flex mb-4">
-        <input
-          class="form-control me-2"
-          type="search"
-          name="q"
-          placeholder="Search items…"
-          value="{{ q }}"
-          aria-label="Search">
-        <button class="btn btn-outline-primary" type="submit">Search</button>
-      </form>
-      <form method="get" class="d-flex mb-4">
-        <select name="category" class="form-select me-2" onchange="this.form.submit()">
-          <option value="">All Categories</option>
-          {% for value,label in CategoryChoices %}
-            <option value="{{ value }}"
-              {% if value == current_category %}selected{% endif %}>
-              {{ label }}
-            </option>
-          {% endfor %}
-        </select>
-        <noscript><button class="btn btn-primary">Filter</button></noscript>
-      </form> 
-    {% if borrow_items_list %}
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            {% for item in borrow_items_list %}
-                {% if item|can_view:request.user %}
-                    <div class="col">
-                        <div class="card h-100">
-                            {% if item.photo %}
-                                <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                            {% else %}
-                                <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                            {% endif %}
-                            <div class="card-body">
-                                <h5 class="card-title">{{ item.name }}</h5>
-                                <p class="card-text">Quantity: {{ item.quantity }}</p>
-                                <p class="card-text">Location: {{ item.location }}</p>
-                                <p class="card-text">
-                                    <strong>Collections:</strong>
-                                    {% with item_collections=item.collections.all %}
-                                        {% if item_collections %}
-                                            {% for collection in item_collections %}
-                                                {% if collection|can_view_collection:request.user %}
-                                                    <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-muted">Not in collection</span>
-                                        {% endif %}
-                                    {% endwith %}
-                                </p>
-                            </div>
-                            <div class="card-footer text-center">
-                                <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="lead">No items are available to borrow.</p>
-    {% endif %}
-    <br>
-    <hr>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Collections</h2>
-    </div>
-    
-    {% if collections_list %}
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            {% for collection in collections_list %}
-                <div class="col">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ collection.title }}</h5>
-                            <p class="card-text">{{ collection.description }}</p>
-                            {% if collection.is_collection_private %}
-                                <span class="badge bg-warning text-dark">Private</span>
-                            {% else %}
-                                <span class="badge bg-success">Public</span>
-                            {% endif %}
-                        </div>
-                        <div class="card-footer text-center">
-                            <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
-                        </div>
-                    </div>
+    <div class="row">
+        <!-- Sidebar with Filters -->
+        <div class="col-lg-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Filter Options</h5>
                 </div>
-            {% endfor %}
+                <div class="card-body">
+                    <form method="get" id="filterForm">
+                        <!-- Keep existing search query parameter if present -->
+                        {% if q %}
+                        <input type="hidden" name="q" value="{{ q }}">
+                        {% endif %}
+                        
+                        <!-- Tab parameter to remember active tab -->
+                        <input type="hidden" name="tab" value="items">
+                        
+                        <div class="mb-4">
+                            <label for="categorySelect" class="form-label">Category</label>
+                            <select id="categorySelect" name="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for value,label in CategoryChoices %}
+                                    <option value="{{ value }}"
+                                    {% if value == current_category %}selected{% endif %}>
+                                    {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Item Type filter -->
+                        <div class="mb-4">
+                            <label for="itemTypeSelect" class="form-label">Item Type</label>
+                            <select id="itemTypeSelect" name="item_type" class="form-select" onchange="toggleConditionFilter()">
+                                <option value="">All Types</option>
+                                <option value="simple" {% if item_type == 'simple' %}selected{% endif %}>Bulk Items</option>
+                                <option value="complex" {% if item_type == 'complex' %}selected{% endif %}>Individual Items</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Condition filter (only for complex items) -->
+                        <div class="mb-4" id="conditionFilterContainer" {% if item_type != 'complex' %}style="display: none;"{% endif %}>
+                            <label for="conditionSelect" class="form-label">Condition</label>
+                            <select id="conditionSelect" name="condition" class="form-select">
+                                <option value="">Any Condition</option>
+                                {% for value, label in ConditionChoices %}
+                                    <option value="{{ value }}"
+                                    {% if value == condition %}selected{% endif %}>
+                                    {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="quantityRange" class="form-label">Minimum Quantity Available</label>
+                            <div class="d-flex align-items-center">
+                                <input type="range" class="form-range flex-grow-1 me-2" id="quantityRange" name="min_quantity" min="1" max="10" value="{{ min_quantity|default:1 }}" oninput="updateQuantityValue(this.value)">
+                                <span id="quantityValue" class="badge bg-primary">{{ min_quantity|default:1 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small>1</small>
+                                <small>10+</small>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                        {% if min_quantity|default:'1' != '1' or current_category or item_type or condition %}
+                            <a href="{% url 'borrow:index' %}?tab=items" class="btn btn-outline-secondary w-100 mt-2">Clear Filters</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Collection Filters (Only visible when collections tab is active) -->
+            <div class="card mt-4" id="collectionFilterCard" style="display: none;">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Collection Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" id="collectionFilterForm">
+                        <input type="hidden" name="tab" value="collections">
+                        {% if collection_q %}
+                        <input type="hidden" name="collection_q" value="{{ collection_q }}">
+                        {% endif %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Visibility</label>
+                            <div class="btn-group w-100" role="group">
+                                <a href="{% url 'borrow:index' %}?tab=collections{% if collection_q %}&collection_q={{ collection_q }}{% endif %}" 
+                                   class="btn btn-outline-secondary {% if not collection_visibility %}active{% endif %}">
+                                   All
+                                </a>
+                                <a href="{% url 'borrow:index' %}?tab=collections&collection_visibility=public{% if collection_q %}&collection_q={{ collection_q }}{% endif %}" 
+                                   class="btn btn-outline-secondary {% if collection_visibility == 'public' %}active{% endif %}">
+                                   Public
+                                </a>
+                                <a href="{% url 'borrow:index' %}?tab=collections&collection_visibility=private{% if collection_q %}&collection_q={{ collection_q }}{% endif %}" 
+                                   class="btn btn-outline-secondary {% if collection_visibility == 'private' %}active{% endif %}">
+                                   Private
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if collection_visibility %}
+                            <a href="{% url 'borrow:index' %}?tab=collections{% if collection_q %}&collection_q={{ collection_q }}{% endif %}" 
+                               class="btn btn-outline-secondary w-100">
+                               Clear Visibility Filter
+                            </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
         </div>
-    {% else %}
-        <p class="lead">No collections available.</p>
-    {% endif %}
+        
+        <!-- Main Content -->
+        <div class="col-lg-9">
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs mb-3" id="browseTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if current_tab != 'collections' %}active{% endif %}" 
+                            id="items-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#items" 
+                            type="button" 
+                            role="tab" 
+                            aria-controls="items" 
+                            aria-selected="{% if current_tab != 'collections' %}true{% else %}false{% endif %}"
+                            onclick="toggleFilters('items')">
+                            Items
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if current_tab == 'collections' %}active{% endif %}" 
+                            id="collections-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#collections" 
+                            type="button" 
+                            role="tab" 
+                            aria-controls="collections" 
+                            aria-selected="{% if current_tab == 'collections' %}true{% else %}false{% endif %}"
+                            onclick="toggleFilters('collections')">
+                            Collections
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content" id="browseTabContent">
+                <!-- Items Tab -->
+                <div class="tab-pane fade {% if current_tab != 'collections' %}show active{% endif %}" id="items" role="tabpanel" aria-labelledby="items-tab">
+                    <!-- Items Search Bar -->
+                    <form method="get" class="d-flex mb-4">
+                        <input type="hidden" name="tab" value="items">
+                        
+                        <!-- Preserve existing filter parameters -->
+                        {% if min_quantity %}
+                        <input type="hidden" name="min_quantity" value="{{ min_quantity }}">
+                        {% endif %}
+                        {% if current_category %}
+                        <input type="hidden" name="category" value="{{ current_category }}">
+                        {% endif %}
+                        {% if item_type %}
+                        <input type="hidden" name="item_type" value="{{ item_type }}">
+                        {% endif %}
+                        {% if condition %}
+                        <input type="hidden" name="condition" value="{{ condition }}">
+                        {% endif %}
+                        
+                        <input
+                            class="form-control me-2"
+                            type="search"
+                            name="q"
+                            placeholder="Search items…"
+                            value="{{ q }}"
+                            aria-label="Search">
+                        <button class="btn btn-outline-primary" type="submit">Search</button>
+                    </form>
+                    
+                    <!-- Active Filters Display -->
+                    {% if min_quantity|default:'1' != '1' or current_category or q or item_type or condition %}
+                    <div class="d-flex flex-wrap mb-3 align-items-center">
+                        <span class="me-2"><strong>Active Filters:</strong></span>
+                        {% if q %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Search: {{ q }}
+                        </span>
+                        {% endif %}
+                        {% if current_category %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Category: 
+                            {% for value,label in CategoryChoices %}
+                                {% if value == current_category %}{{ label }}{% endif %}
+                            {% endfor %}
+                        </span>
+                        {% endif %}
+                        {% if item_type %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Type: {% if item_type == 'simple' %}Bulk Items{% else %}Individual Items{% endif %}
+                        </span>
+                        {% endif %}
+                        {% if condition %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Condition: 
+                            {% for value,label in ConditionChoices %}
+                                {% if value == condition %}{{ label }}{% endif %}
+                            {% endfor %}
+                        </span>
+                        {% endif %}
+                        {% if min_quantity|default:'1' != '1' %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Min Quantity: {{ min_quantity }}+
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Items List -->
+                    {% if borrow_items_list %}
+                        <div class="row row-cols-1 row-cols-md-3 g-4">
+                            {% for item in borrow_items_list %}
+                                {% if item|can_view:request.user %}
+                                    <div class="col">
+                                        <div class="card h-100">
+                                            {% if item.photo %}
+                                                <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                            {% else %}
+                                                <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ item.name }}</h5>
+                                                <p class="card-text">
+                                                    <span class="badge {% if item.quantity >= 5 %}bg-success{% elif item.quantity > 1 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                        Quantity: {{ item.quantity }}
+                                                    </span>
+                                                    {% if item.simpleitem %}
+                                                    <span class="badge bg-secondary">Bulk Item</span>
+                                                    {% elif item.complexitem %}
+                                                    <span class="badge bg-secondary">Individual Item</span>
+                                                    <span class="badge bg-secondary">Condition: {{ item.complexitem.get_condition_display }}</span>
+                                                    {% endif %}
+                                                </p>
+                                                <p class="card-text">Location: {{ item.location }}</p>
+                                                <p class="card-text">
+                                                    <strong>Collections:</strong>
+                                                    {% with item_collections=item.collections.all %}
+                                                        {% if item_collections %}
+                                                            {% for collection in item_collections %}
+                                                                {% if collection|can_view_collection:request.user %}
+                                                                    <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <span class="text-muted">Not in collection</span>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                </p>
+                                            </div>
+                                            <div class="card-footer text-center">
+                                                <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i> No items match your filter criteria. Try adjusting your filters.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Collections Tab -->
+                <div class="tab-pane fade {% if current_tab == 'collections' %}show active{% endif %}" id="collections" role="tabpanel" aria-labelledby="collections-tab">
+                    <!-- Collections Search Bar -->
+                    <form method="get" class="d-flex mb-4">
+                        <input type="hidden" name="tab" value="collections">
+                        
+                        <!-- Preserve existing collection filter parameters -->
+                        {% if collection_visibility %}
+                        <input type="hidden" name="collection_visibility" value="{{ collection_visibility }}">
+                        {% endif %}
+                        
+                        <input
+                            class="form-control me-2"
+                            type="search"
+                            name="collection_q"
+                            placeholder="Search collections…"
+                            value="{{ collection_q }}"
+                            aria-label="Search">
+                        <button class="btn btn-outline-primary" type="submit">Search</button>
+                    </form>
+                    
+                    <!-- Active Collection Filters Display -->
+                    {% if collection_q or collection_visibility %}
+                    <div class="d-flex flex-wrap mb-3 align-items-center">
+                        <span class="me-2"><strong>Active Filters:</strong></span>
+                        {% if collection_q %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Search: {{ collection_q }}
+                        </span>
+                        {% endif %}
+                        {% if collection_visibility %}
+                        <span class="badge bg-info text-dark me-2 mb-1">
+                            Visibility: {{ collection_visibility|title }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Collections List -->
+                    {% if collections_list %}
+                        <div class="row row-cols-1 row-cols-md-3 g-4">
+                            {% for collection in collections_list %}
+                                <div class="col">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ collection.title }}</h5>
+                                            <p class="card-text">{{ collection.description }}</p>
+                                            {% if collection.is_collection_private %}
+                                                <span class="badge bg-warning text-dark">Private</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Public</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer text-center">
+                                            <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i> No collections match your search criteria.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- JavaScript for Range Slider, Condition Filter, and Tab Management -->
+<script>
+    function updateQuantityValue(val) {
+        document.getElementById('quantityValue').innerText = val;
+    }
+    
+    function toggleConditionFilter() {
+        const itemTypeSelect = document.getElementById('itemTypeSelect');
+        const conditionContainer = document.getElementById('conditionFilterContainer');
+        
+        if (itemTypeSelect.value === 'complex') {
+            conditionContainer.style.display = 'block';
+        } else {
+            conditionContainer.style.display = 'none';
+            // Reset condition value when not showing the filter
+            document.getElementById('conditionSelect').value = '';
+        }
+    }
+    
+    function toggleFilters(tabName) {
+        const itemFilterCard = document.getElementById('filterForm').closest('.card');
+        const collectionFilterCard = document.getElementById('collectionFilterCard');
+        
+        if (tabName === 'items') {
+            itemFilterCard.style.display = 'block';
+            collectionFilterCard.style.display = 'none';
+        } else {
+            itemFilterCard.style.display = 'none';
+            collectionFilterCard.style.display = 'block';
+        }
+    }
+    
+    // Initialize values on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const rangeInput = document.getElementById('quantityRange');
+        if (rangeInput) {
+            updateQuantityValue(rangeInput.value);
+        }
+        
+        // Initialize condition filter visibility
+        toggleConditionFilter();
+        
+        // Initialize correct filter card visibility based on active tab
+        const currentTab = '{{ current_tab }}';
+        toggleFilters(currentTab === 'collections' ? 'collections' : 'items');
+        
+        // For direct URLs, ensure correct tab is shown
+        if (currentTab === 'collections') {
+            const collectionsTab = document.getElementById('collections-tab');
+            // Use Bootstrap's tab API to show the tab
+            if (collectionsTab) {
+                const tab = new bootstrap.Tab(collectionsTab);
+                tab.show();
+            }
+        }
+    })
+
+    function setActiveTab(tabName) {
+        // Set hidden input values in both forms
+        const itemFilterForm = document.getElementById('filterForm');
+        const collectionSearchForm = document.querySelector('#collections form');
+        const itemSearchForm = document.querySelector('#items form');
+        
+        // Update all form tab inputs
+        document.querySelectorAll('input[name="tab"]').forEach(input => {
+            input.value = tabName;
+        });
+        
+        // Show the appropriate filter sidebar
+        toggleFilters(tabName);
+    }
+    
+</script>
+
 {% endblock %}

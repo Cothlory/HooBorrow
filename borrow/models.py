@@ -19,10 +19,11 @@ class Item(models.Model):
     ]
 
     name = models.CharField(max_length=200)
-    quantity = models.IntegerField(default=0)
+    quantity = models.IntegerField(default=1)
     location = models.CharField(max_length=200)
     instructions = models.CharField(max_length=500)
     photo = models.ImageField(upload_to='item_photos/')
+    days_to_return = models.IntegerField(default=7)
 
     category = models.CharField(
         max_length=10,
@@ -56,6 +57,14 @@ class Item(models.Model):
                 return True
         return False
 
+    def delete(self, *args, **kwargs):
+        # Delete the photo from AWS S3
+        if self.photo:
+            self.photo.delete(save=False)
+        
+        # Call the parent class delete
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
@@ -70,7 +79,24 @@ class SimpleItem(Item):
         return self.name
 
 class ComplexItem(Item):
-    condition = models.CharField(max_length=200)
+    NEW_CONDITION   = 'NEW'
+    GOOD_CONDITION  = 'GOOD'
+    FAIR_CONDITION    = 'FAIR'
+    POOR_CONDITION   = 'POOR'
+    OTHER_CONDITION = 'OTHER'
+
+    CONDITION_CHOICES = [
+        (NEW_CONDITION,  'New'),
+        (GOOD_CONDITION, 'Good'),
+        (FAIR_CONDITION,   'Fair'),
+        (POOR_CONDITION,  'Poor'),
+    ]
+
+    condition = models.CharField(
+        max_length=10,
+        choices=CONDITION_CHOICES,
+        default=OTHER_CONDITION,
+    )
 
     def list_borrowers(self):
         borrowed_items = BorrowedItem.objects.filter(item=self)

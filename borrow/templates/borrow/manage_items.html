@@ -13,7 +13,7 @@
   
   {% if items %}
     <div class="table-responsive">
-      <table class="table table-striped">
+      <table class="table table-striped" >
         <thead>
           <tr>
             <th>Name</th>
@@ -49,16 +49,39 @@
                 {% endif %}
               </td>
               <td>
-                <div class="btn-group">
-                  <a href="{% url 'borrow:detail' item.id %}" class="btn btn-sm btn-info me-1">View</a>
-                  <a href="{% url 'borrow:edit_item' item.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <div class="btn-group justify-content-between">
+                  <a href="{% url 'borrow:edit_item' item.id %}" class="btn btn-sm btn-outline-secondary me-2">Edit</a>
+                  <button type="button" class="btn btn-sm btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.id }}" >Delete</button>
+                  <a href="{% url 'borrow:detail' item.id %}" class="btn btn-sm btn-outline-primary">View</a>
                 </div>
               </td>
             </tr>
+
+            <div class="modal fade" id="deleteModal{{ item.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ item.id }}" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel{{  item.id }}">Delete Collection</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    Are you sure you want to delete the item "{{ item.name }}"?
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="{% url 'borrow:delete_item' item.id %}" style="display: inline;">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
   {% else %}
     <div class="alert alert-info">
       No items in the inventory yet. Click "Add New Item" to get started.
