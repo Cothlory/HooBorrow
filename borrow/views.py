@@ -627,10 +627,26 @@ def return_item(request, borrowed_item_id):
         else: 
             try:
                 complex_item = ComplexItem.objects.get(id=item.id)
+                
+                # Get the condition assessment if this is a ComplexItem
+                return_condition = request.POST.get('return_condition')
+                
                 if is_borrower:
+                    # Update the borrower's return method to handle condition
                     success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
+                    
+                    # Update condition after return if worse than before
+                    if return_condition and success:
+                        # Update the condition based on the selected value
+                        complex_item.condition = return_condition
+                        complex_item.save()
                 else: 
                     complex_item.quantity += quantity_to_return
+                    
+                    # Update condition based on what was selected in the form
+                    if return_condition:
+                        complex_item.condition = return_condition
+                    
                     complex_item.save()
                     
                     borrowed_item.quantity -= quantity_to_return
