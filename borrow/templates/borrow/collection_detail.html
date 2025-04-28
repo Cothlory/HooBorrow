@@ -6,19 +6,24 @@
 {% block content %}
 
 <div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>{{ object.title }}</h2>
-        <p>{{ object.description }}</p>
-        <p>
-            Created by: {{ object.creator.name }} 
-            {% if object.created_at %}
-                on {{ object.created_at|date:"F d, Y" }} at {{ object.created_at|time:"H:i" }}
-            {% endif %}</small>
-        </p>
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>{{ object.title }}</h2>
+        </div>     
+        <hr>     
+        <div class="mb-3">
+            <p>Description: {{ object.description }}</p>
+        </div> 
+        <hr>  
+        <div>
+            <p>
+                Created by: {{ object.creator.name }}
+                {% if object.created_at %}
+                    on {{ object.created_at|date:"F d, Y" }} at {{ object.created_at|time:"H:i" }}
+                {% endif %}
+            </p>
+        </div>
     </div>
-    
-    
-    
     
     {% if object.is_collection_private and request.user.patron != object.creator and request.user.patron not in object.allowed_users.all and not request.user.is_librarian %}
         <p class="alert alert-warning">You do not have permission to view items in this private collection.</p>
