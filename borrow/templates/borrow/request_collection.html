@@ -1,22 +1,76 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Request to Join {{ collection.name }}</h2>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Request to Join Collection</h3>
+                </div>
+                
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h4 class="card-title mb-3">{{ collection.name }}</h4>
+                        
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3">
+                                <span class="badge bg-info text-dark p-2">
+                                    <i class="bi bi-person-fill me-1"></i> Created by: {{ collection.creator.name }}
+                                </span>
+                            </div>
+                            
+                            {% if collection.is_collection_private %}
+                                <span class="badge bg-warning text-dark p-2">
+                                    <i class="bi bi-lock-fill me-1"></i> Private Collection
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success p-2">
+                                    <i class="bi bi-globe me-1"></i> Public Collection
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-subtitle mb-2">Description</h5>
+                                <p class="card-text">{{ collection.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    {% if user.is_authenticated %}
+                        <form method="POST">
+                            {% csrf_token %}
+                            
+                            <div class="mb-4">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label fw-bold">Why would you like to join this collection?</label>
+                                {{ form.notes.errors }}
+                                {{ form.notes }}
+                                <div class="form-text">Please explain why you're interested in joining this collection.</div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left me-1"></i> Back
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-send-fill me-1"></i> Submit Request
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            You need to be logged in to request access to this collection.
+                            <a href="{% url 'login' %}" class="alert-link">Log in</a> to continue.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
-
-    {% if user.is_authenticated %}
-        <form method="POST">
-        {% csrf_token %}
-        
-        <label for="id_quantity">Enter Reason for Request:</label>
-        {{ form.notes }}
-
-        <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
-    {% else %}
-        <p class="leap">You need to be logged in to borrow this item.</p>
-    {% endif %}
 </div>
 {% endblock %}
