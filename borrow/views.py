@@ -500,11 +500,12 @@ class CollectionDetailView(generic.DetailView):
         if collection.is_collection_private and not request.user.is_authenticated:
             return HttpResponseForbidden("You do not have permission to view this collection.")
         return super().dispatch(request, *args, **kwargs)
-        
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    
+    def get_visible_items(self):
         collection = self.get_object()
         user = self.request.user
+        
+        # Determine which items are visible to the user
         if not collection.is_collection_private:
             visible_items = collection.items_list.all()
         else:
@@ -515,7 +516,68 @@ class CollectionDetailView(generic.DetailView):
                 visible_items = collection.items_list.all()
             else:
                 visible_items = []
+                
+        return visible_items
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get visible items based on permissions
+        visible_items = self.get_visible_items()
+        
+        # Apply all filters
+        # Category filtering
+        current_category = self.request.GET.get('category', '')
+        if current_category in dict(Item.CATEGORY_CHOICES):
+            visible_items = visible_items.filter(category=current_category)
+        
+        # Search filtering
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            visible_items = visible_items.filter(
+                models.Q(name__icontains=q) |
+                models.Q(location__icontains=q) |
+                models.Q(instructions__icontains=q)
+            )
+        
+        # Item type filtering
+        item_type = self.request.GET.get('item_type', '')
+        if item_type == 'simple':
+            # Filter for SimpleItems
+            visible_items = visible_items.filter(simpleitem__isnull=False)
+        elif item_type == 'complex':
+            # Filter for ComplexItems
+            visible_items = visible_items.filter(complexitem__isnull=False)
+            
+            # Add condition filtering for complex items
+            condition = self.request.GET.get('condition', '')
+            if condition:
+                # Use complexitem__condition to filter by condition
+                visible_items = visible_items.filter(complexitem__condition=condition)
+        
+        # Minimum quantity filtering
+        min_quantity = self.request.GET.get('min_quantity', '')
+        if min_quantity:
+            try:
+                min_quantity = int(min_quantity)
+                visible_items = visible_items.filter(quantity__gte=min_quantity)
+            except ValueError:
+                pass
+        
+        # Add items to context
         context['visible_items'] = visible_items
+        
+        # Add all filter parameters to context
+        context['q'] = q
+        context['current_category'] = current_category
+        context['item_type'] = item_type
+        context['condition'] = self.request.GET.get('condition', '')
+        context['min_quantity'] = min_quantity
+        
+        # Add choices to context
+        context['CategoryChoices'] = Item.CATEGORY_CHOICES
+        context['ConditionChoices'] = ComplexItem.CONDITION_CHOICES
+        
         return context
 
 @login_required

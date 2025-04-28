@@ -4,7 +4,7 @@
 
 {% block title %}Browse | HooBorrow{% endblock %}
 {% block content %}
-<div class="container my-4">
+<div class="container my-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Browse</h2>
     </div>
@@ -186,6 +186,9 @@
                             value="{{ q }}"
                             aria-label="Search">
                         <button class="btn btn-outline-primary" type="submit">Search</button>
+                        {% if q %}
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="removeFilter('q')">Clear</button>
+                        {% endif %}
                     </form>
                     
                     <!-- Active Filters Display -->
@@ -195,6 +198,8 @@
                         {% if q %}
                         <span class="badge bg-info text-dark me-2 mb-1">
                             Search: {{ q }}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('q')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
                         {% if current_category %}
@@ -203,11 +208,15 @@
                             {% for value,label in CategoryChoices %}
                                 {% if value == current_category %}{{ label }}{% endif %}
                             {% endfor %}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('category')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
                         {% if item_type %}
                         <span class="badge bg-info text-dark me-2 mb-1">
                             Type: {% if item_type == 'simple' %}Bulk Items{% else %}Individual Items{% endif %}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('item_type')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
                         {% if condition %}
@@ -216,13 +225,21 @@
                             {% for value,label in ConditionChoices %}
                                 {% if value == condition %}{{ label }}{% endif %}
                             {% endfor %}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('condition')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
                         {% if min_quantity|default:'1' != '1' %}
                         <span class="badge bg-info text-dark me-2 mb-1">
                             Min Quantity: {{ min_quantity }}+
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('min_quantity')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
+                        
+                        <a href="{% url 'borrow:index' %}?tab=items" class="btn btn-sm btn-outline-secondary ms-2">
+                            Clear All Filters
+                        </a>
                     </div>
                     {% endif %}
                     
@@ -301,6 +318,9 @@
                             value="{{ collection_q }}"
                             aria-label="Search">
                         <button class="btn btn-outline-primary" type="submit">Search</button>
+                        {% if collection_q %}
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="removeFilter('collection_q')">Clear</button>
+                        {% endif %}
                     </form>
                     
                     <!-- Active Collection Filters Display -->
@@ -310,13 +330,21 @@
                         {% if collection_q %}
                         <span class="badge bg-info text-dark me-2 mb-1">
                             Search: {{ collection_q }}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('collection_q')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
                         {% if collection_visibility %}
                         <span class="badge bg-info text-dark me-2 mb-1">
                             Visibility: {{ collection_visibility|title }}
+                            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove filter" 
+                                    onclick="removeFilter('collection_visibility')" style="font-size: 0.65em;"></button>
                         </span>
                         {% endif %}
+                        
+                        <a href="{% url 'borrow:index' %}?tab=collections" class="btn btn-sm btn-outline-secondary ms-2">
+                            Clear All Filters
+                        </a>
                     </div>
                     {% endif %}
                     
@@ -353,7 +381,7 @@
     </div>
 </div>
 
-<!-- JavaScript for Range Slider, Condition Filter, and Tab Management -->
+<!-- JavaScript for Range Slider, Condition Filter, Tab Management, and Filter Removal -->
 <script>
     function updateQuantityValue(val) {
         document.getElementById('quantityValue').innerText = val;
@@ -383,6 +411,31 @@
             itemFilterCard.style.display = 'none';
             collectionFilterCard.style.display = 'block';
         }
+    }
+    
+    // Filter removal function
+    function removeFilter(filterName) {
+        // Create a form element
+        const form = document.createElement('form');
+        form.method = 'get';
+        form.action = window.location.pathname;
+        
+        // Add all current URL parameters except the one to remove
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.delete(filterName);
+        
+        // Add remaining parameters as hidden inputs
+        for (const [key, value] of urlParams.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        // Submit the form
+        document.body.appendChild(form);
+        form.submit();
     }
     
     // Initialize values on page load
