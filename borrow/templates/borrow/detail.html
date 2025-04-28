@@ -6,7 +6,7 @@
 {% block title %}{{ object.name }}{% endblock %}
 {% block content %}
   
-  <div class="container my-4">
+  <div class="container my-4 mb-5">
     {% if object.photo %}
       <img src="{{ object.photo.url }}" alt="{{ object.name }}" style="width: 10%; height: auto; margin: 0 auto 20px;">
     {% else %}
@@ -15,6 +15,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2>{{ object.name }}</h2>
     </div>
+    <p><strong>Identification Number:</strong> {{ object.id }}</p>
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
     <p><strong>Instructions:</strong> {{ object.instructions }}</p>
     <p><strong>Location:</strong> {{ object.location }}</p>
