@@ -9,112 +9,144 @@
         <h2>Browse</h2>
     </div>
     
-    <form method="get" class="d-flex mb-4">
-        <input
-          class="form-control me-2"
-          type="search"
-          name="q"
-          placeholder="Search items…"
-          value="{{ q }}"
-          aria-label="Search">
-        <button class="btn btn-outline-primary" type="submit">Search</button>
-      </form>
-      <form method="get" class="d-flex mb-4">
-        <select name="category" class="form-select me-2" onchange="this.form.submit()">
-          <option value="">All Categories</option>
-          {% for value,label in CategoryChoices %}
-            <option value="{{ value }}"
-              {% if value == current_category %}selected{% endif %}>
-              {{ label }}
-            </option>
-          {% endfor %}
-        </select>
-        <noscript><button class="btn btn-primary">Filter</button></noscript>
-    </form> 
-
-        <!-- Nav tabs -->
-    <ul class="nav nav-tabs mb-3" id="browseTab" role="tablist">
-        <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab" aria-controls="items" aria-selected="true">Items</button>
-        </li>
-        <li class="nav-item" role="presentation">
-        <button class="nav-link" id="collections-tab" data-bs-toggle="tab" data-bs-target="#collections" type="button" role="tab" aria-controls="collections" aria-selected="false">Collections</button>
-        </li>
-    </ul>
-
-
-    <!-- Tab content -->
-    <div class="tab-content" id="browseTabContent">
-        <!-- Items Tab -->
-        <div class="tab-pane fade show active" id="items" role="tabpanel" aria-labelledby="items-tab">
-            {% if borrow_items_list %}
-                <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for item in borrow_items_list %}
-                        {% if item|can_view:request.user %}
-                            <div class="col">
-                                <div class="card h-100">
-                                    {% if item.photo %}
-                                        <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                                    {% else %}
-                                        <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
-                                    {% endif %}
-                                    <div class="card-body">
-                                        <h5 class="card-title">{{ item.name }}</h5>
-                                        <p class="card-text">Quantity: {{ item.quantity }}</p>
-                                        <p class="card-text">Location: {{ item.location }}</p>
-                                        <p class="card-text">
-                                            <strong>Collections:</strong>
-                                            {% with item_collections=item.collections.all %}
-                                                {% if item_collections %}
-                                                    {% for collection in item_collections %}
-                                                        {% if collection|can_view_collection:request.user %}
-                                                            <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                {% else %}
-                                                    <span class="text-muted">Not in collection</span>
-                                                {% endif %}
-                                            {% endwith %}
-                                        </p>
-                                    </div>
-                                    <div class="card-footer text-center">
-                                        <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
+    <div class="row">
+        <!-- Sidebar with Filters -->
+        <div class="col-lg-3 mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Filter Options</h5>
                 </div>
-            {% else %}
-                <p class="lead">No items are available to borrow.</p>
-            {% endif %}
-        </div>
-
-        <div class="tab-pane fade" id="collections" role="tabpanel" aria-labelledby="collections-tab">
-            {% if collections_list %}
-                <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for collection in collections_list %}
-                        <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ collection.title }}</h5>
-                                    <p class="card-text">{{ collection.description }}</p>
-                                    {% if collection.is_collection_private %}
-                                        <span class="badge bg-warning text-dark">Private</span>
-                                    {% else %}
-                                        <span class="badge bg-success">Public</span>
-                                    {% endif %}
-                                </div>
-                                <div class="card-footer text-center">
-                                    <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
-                                </div>
+                <div class="card-body">
+                    <form method="get">
+                        <div class="mb-3">
+                            <label for="categorySelect" class="form-label">Category</label>
+                            <select id="categorySelect" name="category" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Categories</option>
+                                {% for value,label in CategoryChoices %}
+                                    <option value="{{ value }}"
+                                    {% if value == current_category %}selected{% endif %}>
+                                    {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <noscript><button class="btn btn-primary w-100">Apply Filters</button></noscript>
+                        
+                        <!-- You can add more filters here -->
+                        <!-- Example:
+                        <div class="mb-3">
+                            <label class="form-label">Availability</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="availableOnly" name="available" value="1">
+                                <label class="form-check-label" for="availableOnly">
+                                    Available Items Only
+                                </label>
                             </div>
                         </div>
-                    {% endfor %}
+                        -->
+                    </form>
                 </div>
-            {% else %}
-                <p class="lead">No collections available.</p>
-            {% endif %}
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="col-lg-9">
+            <form method="get" class="d-flex mb-4">
+                <input
+                    class="form-control me-2"
+                    type="search"
+                    name="q"
+                    placeholder="Search items…"
+                    value="{{ q }}"
+                    aria-label="Search">
+                <button class="btn btn-outline-primary" type="submit">Search</button>
+            </form>
+            
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs mb-3" id="browseTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab" aria-controls="items" aria-selected="true">Items</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="collections-tab" data-bs-toggle="tab" data-bs-target="#collections" type="button" role="tab" aria-controls="collections" aria-selected="false">Collections</button>
+                </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content" id="browseTabContent">
+                <!-- Items Tab -->
+                <div class="tab-pane fade show active" id="items" role="tabpanel" aria-labelledby="items-tab">
+                    {% if borrow_items_list %}
+                        <div class="row row-cols-1 row-cols-md-3 g-4">
+                            {% for item in borrow_items_list %}
+                                {% if item|can_view:request.user %}
+                                    <div class="col">
+                                        <div class="card h-100">
+                                            {% if item.photo %}
+                                                <img src="{{ item.photo.url }}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                            {% else %}
+                                                <img src="{% static 'borrow/default.jpg' %}" class="card-img-top" alt="{{ item.name }}" style="object-fit: cover; height: 150px;">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ item.name }}</h5>
+                                                <p class="card-text">Quantity: {{ item.quantity }}</p>
+                                                <p class="card-text">Location: {{ item.location }}</p>
+                                                <p class="card-text">
+                                                    <strong>Collections:</strong>
+                                                    {% with item_collections=item.collections.all %}
+                                                        {% if item_collections %}
+                                                            {% for collection in item_collections %}
+                                                                {% if collection|can_view_collection:request.user %}
+                                                                    <a href="{% url 'borrow:collection_detail' collection.id %}">{{ collection.title }}</a>{% if not forloop.last %}, {% endif %}
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <span class="text-muted">Not in collection</span>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                </p>
+                                            </div>
+                                            <div class="card-footer text-center">
+                                                <a href="{% url 'borrow:detail' item.id %}" class="btn btn-primary btn-sm">View Details</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="lead">No items are available to borrow.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Collections Tab -->
+                <div class="tab-pane fade" id="collections" role="tabpanel" aria-labelledby="collections-tab">
+                    {% if collections_list %}
+                        <div class="row row-cols-1 row-cols-md-3 g-4">
+                            {% for collection in collections_list %}
+                                <div class="col">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ collection.title }}</h5>
+                                            <p class="card-text">{{ collection.description }}</p>
+                                            {% if collection.is_collection_private %}
+                                                <span class="badge bg-warning text-dark">Private</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Public</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer text-center">
+                                            <a href="{% url 'borrow:collection_detail' collection.id %}" class="btn btn-primary btn-sm">View Collection</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="lead">No collections available.</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
