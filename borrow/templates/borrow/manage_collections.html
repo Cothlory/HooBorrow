@@ -43,18 +43,18 @@
             <div>
               {% if is_librarian %}
                 <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ collection.pk }}">Delete</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#availableDeleteModal{{ collection.pk }}">Delete</button>
               {% endif %}
               <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
             </div>
           </li>
           
           {% if is_librarian %}
-          <div class="modal fade" id="deleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ collection.pk }}" aria-hidden="true">
+          <div class="modal fade" id="availableDeleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="availableDeleteModalLabel{{ collection.pk }}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="deleteModalLabel{{ collection.pk }}">Delete Collection</h5>
+                  <h5 class="modal-title" id="availableDeleteModalLabel{{ collection.pk }}">Delete Collection</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -93,17 +93,17 @@
             <div>
               {% if is_librarian or collection.creator.user == request.user %}
                 <a href="{% url 'borrow:edit_collection' collection.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ collection.pk }}">Delete</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#createdDeleteModal{{ collection.pk }}">Delete</button>
               {% endif %}
               <a href="{% url 'borrow:collection_detail' collection.pk %}" class="btn btn-sm btn-outline-primary">View</a>
             </div>
           </li>
           
-          <div class="modal fade" id="deleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ collection.pk }}" aria-hidden="true">
+          <div class="modal fade" id="createdDeleteModal{{ collection.pk }}" tabindex="-1" aria-labelledby="createdDeleteModalLabel{{ collection.pk }}" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="deleteModalLabel{{ collection.pk }}">Delete Collection</h5>
+                  <h5 class="modal-title" id="createdDeleteModalLabel{{ collection.pk }}">Delete Collection</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
