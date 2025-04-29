@@ -80,8 +80,9 @@ def profile_view(request):
         role = "unknown"
     
     if request.method == 'POST' and request.FILES.get('profile_photo'):
-         patron.profile_photo = request.FILES['profile_photo']
-         patron.save()
+        patron.profile_photo = request.FILES['profile_photo']
+        patron.save()
+        
         return redirect('profile')
     
     return render(request, 'account/profile.html', {'role': role, 'patron': patron})
