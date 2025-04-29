@@ -18,13 +18,25 @@ def home(request):
             "public": True,
         })
 
+    # — Handle admin-only users —
+    if request.user.is_staff:
+        try:
+            Patron.objects.get(user=request.user)
+        except Patron.DoesNotExist:
+            messages.error(
+                request, 
+                "Admin accounts don't have access to the main app. Please log in with a normal account.",
+                extra_tags='admin-only'
+            )
+            return redirect('admin:index')
+
     # — Must be a Patron to see dashboard —
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
         return redirect("account_login")
-
-    # grab their borrowed items
+    
+    # Rest of the view remains the same
     borrowed_items = BorrowedItem.objects.filter(borrower=patron, returned=False)
     now = timezone.now()
     due_soon = [b for b in borrowed_items if 0 <= (b.due_date - now).days <= 1]
@@ -38,7 +50,7 @@ def home(request):
         "is_librarian":   False,
     }
 
-    # if they’re a librarian, show pending requests
+    # if they're a librarian, show pending requests
     if Librarian.objects.filter(user=request.user).exists():
         context["is_librarian"]       = True
         context["borrow_requests"]    = BorrowRequest.objects.filter(status=BorrowRequest.PENDING)
@@ -82,5 +94,17 @@ def profile_view(request):
 
 def redirect_to_home(request):
     """Redirect users trying to access AllAuth pages to the home page with a message"""
+    # Check if the user is an admin-only user
+    if request.user.is_authenticated and request.user.is_staff:
+        try:
+            Patron.objects.get(user=request.user)
+        except Patron.DoesNotExist:
+            messages.error(
+                request, 
+                "Admin accounts don't have access to the main app. Please log in with a normal account.",
+                extra_tags='admin-only'
+            )
+            return HttpResponseRedirect(reverse('admin:index'))
+    
     messages.info(request, "Please use Google login to sign in or register.", extra_tags='current-page')
     return HttpResponseRedirect(reverse('home'))
