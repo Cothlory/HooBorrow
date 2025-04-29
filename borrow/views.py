@@ -1,5 +1,5 @@
 from django.db.models import F
-from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseRedirect, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic
@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import Q
 
 
-from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review, CollectionRequest
+from .models import Librarian, SimpleItem, ComplexItem, Item, BorrowedItem, Patron, Collections, BorrowRequest, Review, CollectionRequest, Message
 from .forms import SimpleItemForm, ComplexItemForm, QuantityForm, CollectionForm, ReviewForm, CollectionRequestForm
 
 def index(request):
@@ -206,6 +206,12 @@ def borrow_item(request, pk):
                 date=timezone.now()
             )
             borrow_request.save()
+            send_message_to_librarians(
+                subject=f"New Borrow Request: {patron.name} - {item.name}",
+                content=f"{patron.name} has requested to borrow {quantity} {item.name}.",
+                link=reverse('borrow:approve_requests'),
+                sender=patron
+            )
             messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
             return redirect('borrow:detail', pk=pk)
         
@@ -222,6 +228,12 @@ def borrow_item(request, pk):
                 date=timezone.now()
             )
             borrow_request.save()
+            send_message_to_librarians(
+                subject=f"New Borrow Request: {patron.name} - {item.name}",
+                content=f"{patron.name} has requested to borrow {item.name}.",
+                link=reverse('borrow:approve_requests'),
+                sender=patron
+            )
             messages.success(request, 'Your borrow request has been sent to the librarian.', extra_tags='current-page')
             return redirect('borrow:detail', pk=pk)
         
@@ -280,13 +292,28 @@ def approve_requests(request):
             except Exception as e:
                 messages.error(request, f"Error occurred while approving the request: {str(e)}", extra_tags='current-page')
                 return redirect('borrow:approve_requests')
+            
+            borrow_request.approve()
+            send_message(
+                recipient=borrow_request.borrower,
+                subject=f"Borrow Request Approved: {borrow_request.item.name}",
+                content=f"Your request to borrow {borrow_request.item.name} has been approved.",
+                sender=librarian
+            )
 
         elif action == 'reject':
             borrow_request.status = BorrowRequest.REJECTED
             borrow_request.save()
             messages.error(request, f"Request for {borrow_request.item.name} has been rejected.", extra_tags='current-page')
+            borrow_request.reject()
+            send_message(
+                recipient=borrow_request.borrower,
+                subject=f"Borrow Request Rejected: {borrow_request.item.name}",
+                content=f"Your request to borrow {borrow_request.item.name} has been rejected.",
+                sender=librarian
+            )
 
-        return redirect('borrow:approve_requests')  # Redirect to the same page to refresh the list
+        return redirect('borrow:approve_requests')
 
     return render(request, 'borrow/approve.html', {'borrow_requests': borrow_requests})
 
@@ -705,90 +732,110 @@ def return_item(request, borrowed_item_id):
 @login_required
 def approve_collection_requests(request):
     try:
-        librarian = Librarian.objects.get(user=request.user) 
+        librarian = Librarian.objects.get(user=request.user)
     except Librarian.DoesNotExist:
-        return HttpResponseForbidden("You are not a librarian and cannot approve requests.")
-
-    # Fetch all the borrow requests that are PENDING
+        return HttpResponseForbidden("You are not a librarian and cannot approve collection requests.")
+    
+    # Fetch all pending collection requests
     collection_requests = CollectionRequest.objects.filter(status=CollectionRequest.PENDING)
-
+    
     if request.method == "POST":
         request_id = request.POST.get('request_id')
         action = request.POST.get('action')  # 'approve' or 'reject'
-
+        
         try:
             collection_request = CollectionRequest.objects.get(id=request_id)
         except CollectionRequest.DoesNotExist:
-            messages.error(request, "Collection request not found.", extra_tags='current-page')
+            messages.error(request, "Request not found.", extra_tags='current-page')
             return redirect('borrow:approve_collection_requests')
-
+        
         if action == 'approve':
+            # Existing approval code
+            collection_request.approve()
             collection = collection_request.collection
             user = collection_request.user
-            try:
-                collection.allowed_users.add(user)
-                collection_request.status = CollectionRequest.APPROVED
-                collection_request.save()
-                messages.success(request, "Collection request has been approved.", extra_tags='current-page')
-            except Exception as e:
-                messages.error(request, f"Error occurred while approving the request: {str(e)}", extra_tags='current-page')
-                return redirect('borrow:approve_collection_requests')
-
+            collection.allowed_users.add(user)
+            collection.save()
+            
+            # Send message to user
+            send_message(
+                recipient=collection_request.user,
+                subject=f"Collection Request Approved: {collection_request.collection.title}",
+                content=f"Your request to join the collection '{collection_request.collection.title}' has been approved. You now have access to it.",
+                link=reverse('borrow:collection_detail', args=[collection_request.collection.id]),
+                sender=librarian
+            )
+            
         elif action == 'reject':
-            collection_request.status = CollectionRequest.REJECTED
-            collection_request.save()
-            messages.error(request, f"Request for {collection_request.collection.title} has been rejected.", extra_tags='current-page')
-
-        return redirect('borrow:approve_collection_requests')  # Redirect to the same page to refresh the list
-
+            # Existing rejection code
+            collection_request.reject()
+            
+            # Send message to user
+            send_message(
+                recipient=collection_request.user,
+                subject=f"Collection Request Rejected: {collection_request.collection.title}",
+                content=f"Your request to join the collection '{collection_request.collection.title}' has been rejected.",
+                sender=librarian
+            )
+        
+        return redirect('borrow:approve_collection_requests')
+    
     return render(request, 'borrow/approve_collection_requests.html', {'collection_requests': collection_requests})
 
 @login_required
 def request_collection(request, pk):
+    collection = get_object_or_404(Collections, pk=pk)
+    
+    if not collection.is_collection_private:
+        messages.error(request, "This collection is already public and doesn't require access requests.", extra_tags='current-page')
+        return redirect('borrow:collection_detail', pk=collection.id)
+    
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        return redirect('account:profile')  # Redirect if not a Patron
+        messages.error(request, "You need to be logged in to request collection access.", extra_tags='current-page')
+        return redirect('borrow:collection_detail', pk=collection.id)
     
-    # get collection from the list
-    collection = Collections.objects.get(pk=pk)
-
-    # Create a form instance with POST data if the form is submitted
-    form = CollectionRequestForm(request.POST or None)
+    # Check if the user already has access
+    if collection.allowed_users.filter(pk=patron.pk).exists():
+        messages.info(request, "You already have access to this collection.", extra_tags='current-page')
+        return redirect('borrow:collection_detail', pk=collection.id)
     
-    if request.method == "POST" and form.is_valid():
-        # Check if the patron already has an approved or pending request for this collection
-        existing_request = CollectionRequest.objects.filter(
-            user=patron, 
-            collection=collection, 
-            status__in=['PENDING']
-        ).exists()
-        
-        # Only create a new request if there's no existing approved or pending request
-        if not existing_request:
-            notes = form.cleaned_data['notes']
+    # Check if there's a pending request
+    existing_request = CollectionRequest.objects.filter(
+        user=patron,
+        collection=collection,
+        status=CollectionRequest.PENDING
+    ).exists()
+    
+    if existing_request:
+        messages.info(request, "You already have a pending request for this collection.", extra_tags='current-page')
+        return redirect('borrow:collection_detail', pk=collection.id)
+    
+    if request.method == 'POST':
+        form = CollectionRequestForm(request.POST)
+        if form.is_valid():
             collection_request = CollectionRequest.objects.create(
-                user=patron, 
-                collection=collection, 
-                notes=notes, 
-                date=timezone.now()
+                user=patron,
+                collection=collection,
+                date=timezone.now(),
+                notes=form.cleaned_data['notes']
             )
-            collection_request.save()
-            messages.success(
-                request, 
-                'Your request to join this collection has been sent to the librarian.', 
-                extra_tags='current-page'
+            
+            # Send message to librarians
+            send_message_to_librarians(
+                subject=f"Collection Access Request: {patron.name} - {collection.title}",
+                content=f"{patron.name} has requested to join the collection '{collection.title}'.\n\nReason: {form.cleaned_data['notes']}",
+                link=reverse('borrow:approve_collection_requests'),
+                sender=patron
             )
-        else:
-            messages.warning(
-                request, 
-                'You already have a pending request for this collection.', 
-                extra_tags='current-page'
-            )
-        
-        return redirect('borrow:collection_detail', pk=pk)
-
-    return render(request, 'borrow/request_collection.html', {'form': form, 'collection': collection})
+            
+            messages.success(request, "Your request to join this collection has been submitted.", extra_tags='current-page')
+            return redirect('borrow:collection_detail', pk=collection.id)
+    else:
+        form = CollectionRequestForm()
+    
+    return render(request, 'borrow/request_collection.html', {'collection': collection, 'form': form})
     
 @login_required
 def create_collection(request):
@@ -935,3 +982,69 @@ def delete_review(request, review_id):
         messages.success(request, "Your review has been deleted successfully.", extra_tags='current-page')
     
     return redirect('borrow:detail', pk=item_id)
+
+@login_required
+def message_list(request):
+    try:
+        patron = Patron.objects.get(user=request.user)
+        messages = Message.objects.filter(recipient=patron)
+        return render(request, 'borrow/messages.html', {'messages': messages})
+    except Patron.DoesNotExist:
+        messages.error(request, "You need to be a patron to access messages.", extra_tags='current-page')
+        return redirect('home')
+
+@login_required
+def mark_message_read(request, message_id):
+    try:
+        patron = Patron.objects.get(user=request.user)
+        message = get_object_or_404(Message, id=message_id, recipient=patron)
+        
+        if request.method == "POST":
+            message.read = not message.read
+            message.save()
+            return redirect('borrow:messages')
+        
+        message.read = True
+        message.save()
+        
+        if message.link and message.link.strip():
+            return redirect(message.link)
+        
+        return redirect('borrow:messages')
+    except Patron.DoesNotExist:
+        messages.error(request, "You need to be a patron to access messages.", extra_tags='current-page')
+        return redirect('home')
+
+def unread_message_count(request):
+    """API endpoint to get unread message count for AJAX calls"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'count': 0})
+    
+    try:
+        patron = Patron.objects.get(user=request.user)
+        count = Message.objects.filter(recipient=patron, read=False).count()
+        return JsonResponse({'count': count})
+    except Patron.DoesNotExist:
+        return JsonResponse({'count': 0})
+
+def send_message(recipient, subject, content, link='', sender=None):
+    """Helper function to send a message to a recipient"""
+    Message.objects.create(
+        recipient=recipient,
+        subject=subject,
+        content=content,
+        link=link,
+        sender=sender
+    )
+
+def send_message_to_librarians(subject, content, link='', sender=None):
+    """Helper function to send a message to all librarians"""
+    librarians = Librarian.objects.all()
+    for librarian in librarians:
+        Message.objects.create(
+            recipient=librarian,
+            subject=subject,
+            content=content,
+            link=link,
+            sender=sender
+        )

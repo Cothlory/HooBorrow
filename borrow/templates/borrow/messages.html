@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Messages | HooBorrow{% endblock %}
+
+{% block content %}
+<div class="container my-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Messages</h2>
+    </div>
+    
+    {% if messages %}
+        <div class="list-group">
+            {% for message in messages %}
+                <div class="list-group-item list-group-item-action {% if not message.read %}list-group-item-primary{% endif %}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">
+                            {% if not message.read %}
+                                <span class="badge bg-primary rounded-pill me-2">New</span>
+                            {% endif %}
+                            {{ message.subject }}
+                        </h5>
+                        <small>{{ message.created_at|date:"M d, Y" }} at {{ message.created_at|time:"H:i" }}</small>
+                    </div>
+                    <p class="mb-1">{{ message.content|linebreaks }}</p>
+                    {% if message.sender %}
+                        <small class="text-muted">From: {{ message.sender.name }}</small>
+                    {% else %}
+                        <small class="text-muted">From: System</small>
+                    {% endif %}
+                    <div class="mt-2">
+                        {% if message.link %}
+                            <a href="{% url 'borrow:mark_message_read' message.id %}" class="btn btn-sm btn-outline-primary">
+                                {% if message.read %}View Details{% else %}Mark as Read & View Details{% endif %}
+                            </a>
+                        {% else %}
+                            <form method="POST" action="{% url 'borrow:mark_message_read' message.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    {% if message.read %}Mark as Unread{% else %}Mark as Read{% endif %}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="lead">You have no messages.</p>
+    {% endif %}
+</div>
+{% endblock %}
