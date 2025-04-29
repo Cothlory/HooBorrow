@@ -22,7 +22,11 @@ def home(request):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        return redirect("account_login")
+        patron = Patron.objects.create(
+            user=request.user,
+            email=request.user.email,
+            name=request.user.get_full_name(),
+        )
 
     # grab their borrowed items
     borrowed_items = BorrowedItem.objects.filter(borrower=patron, returned=False)
@@ -48,38 +52,50 @@ def home(request):
 
 @login_required
 def profile_view(request):
+    # Check if user is a superuser first
+    is_superuser = request.user.is_superuser
+    
     # Try to get the existing Patron instance
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        # Only create a new one if it doesn't exist
-        patron = Patron.objects.create(
-            user=request.user,
-            email=request.user.email,
-            name=request.user.get_full_name(),
-        )
-        # Redirect to ensure smooth flow
-        return redirect('profile')
-
+        # Only create a new one if it doesn't exist and is not a superuser
+        if not is_superuser:
+            patron = Patron.objects.create(
+                user=request.user,
+                email=request.user.email,
+                name=request.user.get_full_name(),
+            )
+        else:
+            # For superusers without patron accounts, create a minimal context
+            return render(request, 'account/profile.html', {
+                'role': 'superuser',
+                'patron': None
+            })
+    
     # Check if the user has a Librarian instance
     librarian = Librarian.objects.filter(user=request.user).first()
     
-    # Determine user role: librarian > patron > unknown
-    if librarian:
+    # Determine user role: superuser > librarian > patron > unknown
+    if is_superuser:
+        role = "superuser"
+    elif librarian:
         role = "librarian"
     elif patron:
         role = "patron"
     else:
         role = "unknown"
-
+    
     # Handle profile photo upload
     if request.method == 'POST' and request.FILES.get('profile_photo'):
-        patron.profile_photo = request.FILES['profile_photo']
-        patron.save()
+        if patron:  # Only try to update if patron exists
+            patron.profile_photo = request.FILES['profile_photo']
+            patron.save()
         return redirect('profile')
-
+    
     return render(request, 'account/profile.html', {'role': role, 'patron': patron})
 
+    
 def redirect_to_home(request):
     """Redirect users trying to access AllAuth pages to the home page with a message"""
     messages.info(request, "Please use Google login to sign in or register.", extra_tags='current-page')

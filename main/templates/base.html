@@ -213,7 +213,6 @@
   </script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      {% if user.is_authenticated %}
         function updateUnreadCount() {
           fetch('{% url "borrow:unread_message_count" %}')
             .then(response => response.json())
@@ -230,7 +229,6 @@
         }
         updateUnreadCount();
         setInterval(updateUnreadCount, 30000);
-      {% endif %}
     });
   </script>
 </body>

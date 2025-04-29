@@ -133,9 +133,6 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# ACCOUNT_FORMS = {
-#     'login': 'main.forms.CustomLoginForm',
-# }
 
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
