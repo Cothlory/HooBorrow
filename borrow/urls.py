@@ -18,6 +18,7 @@ urlpatterns = [
     path('manage_collections/edit/<int:pk>/', views.edit_collection, name='edit_collection'),
     path('manage_collections/delete/<int:pk>/', views.delete_collection, name='delete_collection'),
     path("<int:pk>/review/", views.add_review, name="add_review"),
+    path("review/<int:review_id>/delete/", views.delete_review, name="delete_review"),
     path('my_borrowed_items/', views.my_borrowed_items, name='my_borrowed_items'),
     path('all_borrowed_items/', views.all_borrowed_items, name='all_borrowed_items'),
     path('return_item/<int:borrowed_item_id>/', views.return_item, name='return_item'),

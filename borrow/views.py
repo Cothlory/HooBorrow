@@ -902,3 +902,19 @@ def delete_item(request, pk):
         messages.success(request, f"Item '{item_name}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_items")
     return redirect("borrow:manage_items")
+
+@login_required
+def delete_review(request, review_id):
+    """Delete a review if the user is the owner"""
+    review = get_object_or_404(Review, pk=review_id)
+    item_id = review.item.id
+    
+    if request.user != review.reviewer.user:
+        messages.error(request, "You can only delete your own reviews.", extra_tags='current-page')
+        return redirect('borrow:detail', pk=item_id)
+    
+    if request.method == "POST":
+        review.delete()
+        messages.success(request, "Your review has been deleted successfully.", extra_tags='current-page')
+    
+    return redirect('borrow:detail', pk=item_id)

@@ -78,6 +78,9 @@
               <div class="card-body">
                 <div class="d-flex justify-content-between">
                   <h5 class="card-title">{{ review.reviewer.name }}</h5>
+                  {% if review.reviewer.user == request.user %}
+                    <span>Your Review</span>
+                  {% endif %}
                   <div>
                     {% for i in "12345" %}
                       {% if forloop.counter <= review.rating %}
@@ -90,6 +93,37 @@
                 </div>
                 <h6 class="card-subtitle mb-2 text-muted">{{ review.created_at|date:"F j, Y" }}</h6>
                 <p class="card-text">{{ review.comment }}</p>
+                
+                {% if request.user.is_authenticated and review.reviewer.user == request.user %}
+                  <div class="mt-2">
+                    <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteReviewModal{{ review.id }}">
+                      Delete
+                    </button>
+                    
+                    <!-- Delete Review Modal -->
+                    <div class="modal fade" id="deleteReviewModal{{ review.id }}" tabindex="-1" aria-labelledby="deleteReviewModalLabel{{ review.id }}" aria-hidden="true">
+                      <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" id="deleteReviewModalLabel{{ review.id }}">Delete Review</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            Are you sure you want to delete your review for "{{ object.name }}"?
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <form method="post" action="{% url 'borrow:delete_review' review.id %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-danger">Delete Review</button>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -101,9 +135,7 @@
 
     {% if can_review %}
       <div class="mb-3">
-        {% if has_reviewed %}
-          <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-outline-primary">Edit Your Review</a>
-        {% else %}
+        {% if not has_reviewed %}
           <a href="{% url 'borrow:add_review' object.id %}" class="btn btn-primary">Add a Review</a>
         {% endif %}
       </div>
