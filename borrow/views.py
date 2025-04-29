@@ -138,11 +138,20 @@ class DetailView(generic.DetailView):
             })
         context['borrowers_info'] = borrowers_info
         reviews = item.reviews.all().order_by('-created_at')
-        context['reviews'] = reviews
-        context['is_complex_item'] = hasattr(item, 'complexitem')
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
+                user_review = None
+                for review in reviews:
+                    if review.reviewer.user == self.request.user:
+                        user_review = review
+                        break
+                if user_review:
+                    reviews_list = list(reviews)
+                    reviews_list.remove(user_review)
+                    reviews_list.insert(0, user_review)
+                    reviews = reviews_list
+                
                 has_borrowed = BorrowedItem.objects.filter(
                     borrower=patron,
                     item=item
@@ -160,7 +169,9 @@ class DetailView(generic.DetailView):
         else:
             context['can_review'] = False
             context['has_reviewed'] = False
-            
+        
+        context['reviews'] = reviews
+        context['is_complex_item'] = hasattr(item, 'complexitem')
         return context
 
 def borrow_item(request, pk):
