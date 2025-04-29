@@ -1,4 +1,5 @@
-{% extends "admin/base.html" %}
+{% extends "admin/login.html" %}
+{% load i18n %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -10,3 +11,51 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+{% block usertools %}
+<div id="user-tools">
+    {% if has_permission %}
+    <strong>{% translate "Welcome," %}</strong> {% firstof user.get_short_name user.get_username %}
+    <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-link">{% translate "Log out" %}</button>
+    </form>
+    {% else %}
+    {% translate "Please log in again, because your session has expired." %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block messages %}
+    {% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .admin-only {
+        color: #fff;
+        background-color: #d9534f;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .back-to-app {
+      text-align: center;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    .back-to-app a {
+      text-decoration: none;
+      color: #444;
+    }
+    .back-to-app a:hover {
+      text-decoration: underline;
+    }
+</style>
+{% endblock %}

@@ -94,6 +94,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "allauth.account.middleware.AccountMiddleware",
+    'main.middleware.AdminRedirectMiddleware',
 ]
 
 ROOT_URLCONF = 'HooBorrow.urls'
