@@ -138,13 +138,35 @@ class DetailView(generic.DetailView):
             })
         context['borrowers_info'] = borrowers_info
         reviews = item.reviews.all().order_by('-created_at')
-        context['reviews'] = reviews
-        context['is_complex_item'] = hasattr(item, 'complexitem')
+        avg_score = 0
+        if reviews.exists():
+            total_rating = sum(review.rating for review in reviews)
+            avg_score = round(total_rating / reviews.count(), 1)
+        context['avg_review_score'] = avg_score
+        context['review_count'] = reviews.count()
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
-                has_borrowed = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
-                has_reviewed = Review.objects.filter(reviewer=patron, item=item).exists()
+                user_review = None
+                for review in reviews:
+                    if review.reviewer.user == self.request.user:
+                        user_review = review
+                        break
+                if user_review:
+                    reviews_list = list(reviews)
+                    reviews_list.remove(user_review)
+                    reviews_list.insert(0, user_review)
+                    reviews = reviews_list
+                
+                has_borrowed = BorrowedItem.objects.filter(
+                    borrower=patron,
+                    item=item
+                ).exists()
+                has_reviewed = Review.objects.filter(
+                    reviewer=patron,
+                    item=item
+                ).exists()
+                
                 context['can_review'] = has_borrowed
                 context['has_reviewed'] = has_reviewed
             except Patron.DoesNotExist:
@@ -153,7 +175,9 @@ class DetailView(generic.DetailView):
         else:
             context['can_review'] = False
             context['has_reviewed'] = False
-            
+        
+        context['reviews'] = reviews
+        context['is_complex_item'] = hasattr(item, 'complexitem')
         return context
 
 def borrow_item(request, pk):
@@ -589,37 +613,40 @@ def add_review(request, pk):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        messages.error(request, "Only patrons can review items.", extra_tags='current-page')
+        messages.error(request, "You need to be a patron to review items.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
-    borrowed_history = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
-    if not borrowed_history:
-        messages.error(request, "You can only review items you've borrowed.", extra_tags='current-page')
+    has_borrowed = BorrowedItem.objects.filter(
+        borrower=patron,
+        item=item
+    ).exists()
+    
+    if not has_borrowed:
+        messages.error(request, "You can only review items you have borrowed.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
-    existing_review = Review.objects.filter(reviewer=patron, item=item).first()
+    try:
+        existing_review = Review.objects.get(reviewer=patron, item=item)
+    except Review.DoesNotExist:
+        existing_review = None
     
     if request.method == 'POST':
-        if existing_review:
-            form = ReviewForm(request.POST, instance=existing_review)
-        else:
-            form = ReviewForm(request.POST)
-        
+        form = ReviewForm(request.POST, instance=existing_review)
         if form.is_valid():
             review = form.save(commit=False)
             review.item = item
             review.reviewer = patron
             review.save()
-            messages.success(request, "Your review has been submitted!", extra_tags='current-page')
+            messages.success(request, 
+                "Your review has been updated." if existing_review else "Your review has been added.", 
+                extra_tags='current-page'
+            )
             return redirect('borrow:detail', pk=pk)
     else:
-        if existing_review:
-            form = ReviewForm(instance=existing_review)
-        else:
-            form = ReviewForm()
+        form = ReviewForm(instance=existing_review)
     
     return render(request, 'borrow/add_review.html', {
         'form': form,
         'item': item,
-        'existing_review': existing_review
+        'existing_review': existing_review,
     })
 
 @login_required
@@ -643,96 +670,37 @@ def all_borrowed_items(request):
 
 @login_required
 def return_item(request, borrowed_item_id):
-    borrowed_item = get_object_or_404(BorrowedItem, id=borrowed_item_id, returned=False)
+    borrowed_item = get_object_or_404(BorrowedItem, id=borrowed_item_id)
     
-    is_borrower = False
+    # Check if the user is the borrower or a librarian
+    is_borrower = borrowed_item.borrower.user == request.user
     is_librarian = False
-    
     try:
-        patron = Patron.objects.get(user=request.user)
-        is_borrower = (patron == borrowed_item.borrower)
-    except Patron.DoesNotExist:
-        pass
-    
-    try:
-        librarian = Librarian.objects.get(user=request.user)
+        Librarian.objects.get(user=request.user)
         is_librarian = True
     except Librarian.DoesNotExist:
         pass
     
     if not (is_borrower or is_librarian):
-        return HttpResponseForbidden("You do not have permission to return this item.")
+        return HttpResponseForbidden("You don't have permission to return this item.")
     
-    if request.method == "POST":
-        quantity_to_return = int(request.POST.get('quantity', 1))
-        
-        if quantity_to_return <= 0 or quantity_to_return > borrowed_item.quantity:
-            messages.error(request, f"Invalid quantity. You can return between 1 and {borrowed_item.quantity} items.", extra_tags='current-page')
-            return redirect('borrow:my_borrowed_items' if is_borrower else 'borrow:all_borrowed_items')
-        
-        item = borrowed_item.item
-        success = False
-        
-        if borrowed_item.item_type == 'SIMPLE':
-            try:
-                simple_item = SimpleItem.objects.get(id=item.id)
-                if is_borrower:
-                    success = borrowed_item.borrower.return_simple_item(simple_item, quantity_to_return)
-                else:  
-                    simple_item.quantity += quantity_to_return
-                    simple_item.save()
-                    
-                    borrowed_item.quantity -= quantity_to_return
-                    if borrowed_item.quantity == 0:
-                        borrowed_item.returned = True
-                    borrowed_item.save()
-                    success = True
-            except SimpleItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Simple Item.", extra_tags='current-page')
-        else: 
-            try:
-                complex_item = ComplexItem.objects.get(id=item.id)
-                
-                # Get the condition assessment if this is a ComplexItem
-                return_condition = request.POST.get('return_condition')
-                
-                if is_borrower:
-                    # Update the borrower's return method to handle condition
-                    success = borrowed_item.borrower.return_complex_item(complex_item, quantity_to_return)
-                    
-                    # Update condition after return if worse than before
-                    if return_condition and success:
-                        # Update the condition based on the selected value
-                        complex_item.condition = return_condition
-                        complex_item.save()
-                else: 
-                    complex_item.quantity += quantity_to_return
-                    
-                    # Update condition based on what was selected in the form
-                    if return_condition:
-                        complex_item.condition = return_condition
-                    
-                    complex_item.save()
-                    
-                    borrowed_item.quantity -= quantity_to_return
-                    if borrowed_item.quantity == 0:
-                        borrowed_item.returned = True
-                    borrowed_item.save()
-                    success = True
-            except ComplexItem.DoesNotExist:
-                messages.error(request, f"Item {item.name} not found as a Complex Item.", extra_tags='current-page')
-        
-        if success:
-            messages.success(request, f"Successfully returned {quantity_to_return} of {item.name}.", extra_tags='current-page')
-        else:
-            messages.error(request, f"Failed to return {item.name}. Please try again.", extra_tags='current-page')
-        
-        if is_borrower:
-            return redirect('borrow:my_borrowed_items')
-        else:
-            return redirect('borrow:all_borrowed_items')
+    item = borrowed_item.item
+    item.quantity += borrowed_item.quantity
+    item.save()
     
-    return render(request, 'borrow/return_item.html', {'borrowed_item': borrowed_item})
+    borrowed_item.returned = True
+    borrowed_item.save()
+    
+    messages.success(request, f"Item '{item.name}' has been returned successfully.", extra_tags='current-page')
+    
+    if is_borrower:
+        return redirect('borrow:add_review', pk=item.id)
+    
+    # Otherwise redirect back to the appropriate page
+    if is_librarian:
+        return redirect('borrow:all_borrowed_items')
+    else:
+        return redirect('borrow:my_borrowed_items')
 
 @login_required
 def approve_collection_requests(request):
@@ -951,3 +919,19 @@ def delete_item(request, pk):
         messages.success(request, f"Item '{item_name}' deleted successfully.", extra_tags='current-page')
         return redirect("borrow:manage_items")
     return redirect("borrow:manage_items")
+
+@login_required
+def delete_review(request, review_id):
+    """Delete a review if the user is the owner"""
+    review = get_object_or_404(Review, pk=review_id)
+    item_id = review.item.id
+    
+    if request.user != review.reviewer.user:
+        messages.error(request, "You can only delete your own reviews.", extra_tags='current-page')
+        return redirect('borrow:detail', pk=item_id)
+    
+    if request.method == "POST":
+        review.delete()
+        messages.success(request, "Your review has been deleted successfully.", extra_tags='current-page')
+    
+    return redirect('borrow:detail', pk=item_id)

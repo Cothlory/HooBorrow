@@ -10,19 +10,20 @@
   
   <div class="card mb-4">
     <div class="card-body">
-      <form method="post">
+      <form method="post" id="reviewForm">
         {% csrf_token %}
         
         <div class="mb-3">
-          <label for="{{ form.rating.id_for_label }}" class="form-label">Rating</label>
-          {{ form.rating }}
-          {% if form.rating.errors %}
-          <div class="text-danger">
-            {% for error in form.rating.errors %}
-              {{ error }}
-            {% endfor %}
+          <label class="form-label">Rating</label>
+          <div class="star-rating">
+            <div class="stars">
+              {% for i in "12345" %}
+                <span class="star" data-value="{{ forloop.counter }}">☆</span>
+              {% endfor %}
+            </div>
+            {{ form.rating.errors }}
+            <input type="hidden" name="rating" id="id_rating" value="{{ form.rating.value|default:'' }}">
           </div>
-          {% endif %}
         </div>
         
         <div class="mb-3">
@@ -45,4 +46,79 @@
     </div>
   </div>
 </div>
+
+<style>
+  .star-rating .stars {
+    font-size: 2rem;
+    display: inline-block;
+  }
+  
+  .star {
+    cursor: pointer;
+    color: #ccc;
+    transition: color 0.2s;
+  }
+  
+  .star.active {
+    color: #FFD700;
+  }
+  
+  .star:hover {
+    color: #FFD700;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('id_rating');
+    
+    // Set initial stars if a rating exists
+    const initialRating = ratingInput.value;
+    if (initialRating) {
+      setStars(initialRating);
+    }
+    
+    // Add click event to all stars
+    stars.forEach(star => {
+      star.addEventListener('click', function() {
+        const value = this.getAttribute('data-value');
+        ratingInput.value = value;
+        setStars(value);
+      });
+      
+      // Add hover effect
+      star.addEventListener('mouseenter', function() {
+        const value = this.getAttribute('data-value');
+        highlightStars(value);
+      });
+      
+      star.addEventListener('mouseleave', function() {
+        // Reset to selected value
+        highlightStars(ratingInput.value || 0);
+      });
+    });
+    
+    // Function to set stars permanently
+    function setStars(num) {
+      stars.forEach(star => {
+        const starValue = star.getAttribute('data-value');
+        star.textContent = starValue <= num ? '★' : '☆';
+        star.classList.toggle('active', starValue <= num);
+      });
+    }
+    
+    // Function to temporarily highlight stars on hover
+    function highlightStars(num) {
+      stars.forEach(star => {
+        const starValue = star.getAttribute('data-value');
+        if (!ratingInput.value || starValue > ratingInput.value) {
+          // Only change non-selected stars
+          star.textContent = starValue <= num ? '★' : '☆';
+          star.classList.toggle('active', starValue <= num);
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}
