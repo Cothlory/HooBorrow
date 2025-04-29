@@ -596,37 +596,40 @@ def add_review(request, pk):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        messages.error(request, "Only patrons can review items.", extra_tags='current-page')
+        messages.error(request, "You need to be a patron to review items.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
-    borrowed_history = BorrowedItem.objects.filter(borrower=patron, item=item).exists()
-    if not borrowed_history:
-        messages.error(request, "You can only review items you've borrowed.", extra_tags='current-page')
+    has_borrowed = BorrowedItem.objects.filter(
+        borrower=patron,
+        item=item
+    ).exists()
+    
+    if not has_borrowed:
+        messages.error(request, "You can only review items you have borrowed.", extra_tags='current-page')
         return redirect('borrow:detail', pk=pk)
-    existing_review = Review.objects.filter(reviewer=patron, item=item).first()
+    try:
+        existing_review = Review.objects.get(reviewer=patron, item=item)
+    except Review.DoesNotExist:
+        existing_review = None
     
     if request.method == 'POST':
-        if existing_review:
-            form = ReviewForm(request.POST, instance=existing_review)
-        else:
-            form = ReviewForm(request.POST)
-        
+        form = ReviewForm(request.POST, instance=existing_review)
         if form.is_valid():
             review = form.save(commit=False)
             review.item = item
             review.reviewer = patron
             review.save()
-            messages.success(request, "Your review has been submitted!", extra_tags='current-page')
+            messages.success(request, 
+                "Your review has been updated." if existing_review else "Your review has been added.", 
+                extra_tags='current-page'
+            )
             return redirect('borrow:detail', pk=pk)
     else:
-        if existing_review:
-            form = ReviewForm(instance=existing_review)
-        else:
-            form = ReviewForm()
+        form = ReviewForm(instance=existing_review)
     
     return render(request, 'borrow/add_review.html', {
         'form': form,
         'item': item,
-        'existing_review': existing_review
+        'existing_review': existing_review,
     })
 
 @login_required
