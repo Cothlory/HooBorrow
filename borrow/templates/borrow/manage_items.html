@@ -41,9 +41,9 @@
               <td>{{ item.location }}</td>
               <td>
                 {% if item|class_name == 'SimpleItem' %}
-                  Simple Item
+                  Bulk Item
                 {% elif item|class_name == 'ComplexItem' %}
-                  Complex Item ({{ item.condition }})
+                  Individual Item ({{ item.condition }})
                 {% else %}
                   Unknown
                 {% endif %}
