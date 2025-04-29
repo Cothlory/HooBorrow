@@ -59,20 +59,27 @@ def profile_view(request):
     try:
         patron = Patron.objects.get(user=request.user)
     except Patron.DoesNotExist:
-        # Only create a new one if it doesn't exist
-        patron = Patron.objects.create(
-            user=request.user,
-            email=request.user.email,
-            name=request.user.get_full_name(),
-        )
-        # Redirect to ensure smooth flow
-        return redirect('profile')
+        # Only create a new one if it doesn't exist and is not a superuser
+        if not is_superuser:
+            patron = Patron.objects.create(
+                user=request.user,
+                email=request.user.email,
+                name=request.user.get_full_name(),
+            )
+        else:
+            # For superusers without patron accounts, create a minimal context
+            return render(request, 'account/profile.html', {
+                'role': 'superuser',
+                'patron': None
+            })
     
     # Check if the user has a Librarian instance
     librarian = Librarian.objects.filter(user=request.user).first()
     
     # Determine user role: librarian > patron > unknown
-    if librarian:
+    if is_superuser:
+        role = "superuser"
+    elif librarian:
         role = "librarian"
     elif patron:
         role = "patron"
@@ -80,9 +87,9 @@ def profile_view(request):
         role = "unknown"
     
     if request.method == 'POST' and request.FILES.get('profile_photo'):
-        patron.profile_photo = request.FILES['profile_photo']
-        patron.save()
-        
+        if patron: 
+            patron.profile_photo = request.FILES['profile_photo']
+            patron.save()
         return redirect('profile')
     
     return render(request, 'account/profile.html', {'role': role, 'patron': patron})
