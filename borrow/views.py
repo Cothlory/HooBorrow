@@ -535,9 +535,9 @@ class CollectionDetailView(generic.DetailView):
         q = self.request.GET.get("q", "").strip()
         if q:
             visible_items = visible_items.filter(
-                models.Q(name__icontains=q) |
-                models.Q(location__icontains=q) |
-                models.Q(instructions__icontains=q)
+                Q(name__icontains=q) |
+                Q(location__icontains=q) |
+                Q(instructions__icontains=q)
             )
         
         # Item type filtering
