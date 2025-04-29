@@ -1,8 +1,110 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Home | HooBorrow{% endblock %}
+
+{% block title %}
+  {% if user.is_authenticated %}Dashboard | HooBorrow{% else %}Home | HooBorrow{% endif %}
+{% endblock %}
+
 {% block content %}
-<div class="my-4">
-    <p class="lead">Welcome to HooBorrow! This site is still under construction!</p>
-</div>
+  {% if not user.is_authenticated %}
+    <!-- PUBLIC LANDING -->
+    <div class="card mt-5 bg-primary text-white">
+      <div class="card-body text-center">
+        <h1 class="card-title">Welcome to HooBorrow</h1>
+        <p class="lead">Please log in or sign up to start borrowing.</p>
+        <!-- trigger your login modal -->
+        <button class="btn btn-light me-2" data-bs-toggle="modal" data-bs-target="#loginModal">
+          Log In / Sign Up
+        </button>
+        <!-- let guests also browse public items -->
+        <a href="{% url 'borrow:index' %}" class="btn btn-light me-2">
+          Browse Items
+        </a>
+      </div>
+    </div>
+
+  {% else %}
+    <h1 class="mt-4 mb-4">Dashboard</h1>
+    <!-- LIBRARIAN PENDING REQUESTS -->
+    {% if is_librarian %}
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <h2>Pending Borrow Requests</h2>
+          {% if borrow_requests %}
+            <ul class="list-group mb-3">
+              {% for req in borrow_requests %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {{ req.borrower.name }} wants {{ req.quantity }}×{{ req.item.name }}
+                  <a href="{% url 'borrow:approve_requests' %}" class="btn btn-sm btn-primary">Review</a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-white">No pending borrow requests.</p>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <h2>Pending Collection Requests</h2>
+          {% if collection_requests %}
+            <ul class="list-group mb-3">
+              {% for req in collection_requests %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {{ req.user.name }} → {{ req.collection.title }}
+                  <a href="{% url 'borrow:approve_collection_requests' %}" class="btn btn-sm btn-primary">Review</a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-white">No pending collection requests.</p>
+          {% endif %}
+        </div>
+      </div>
+      <hr class="my-4">
+    {% endif %}
+
+    <!-- DUE SOON -->
+    {% if due_soon %}
+      <div class="alert alert-warning mt-3">
+        <strong>Due in 24 hours:</strong>
+        <ul class="mb-0">
+          {% for b in due_soon %}
+            <li>{{ b.item.name }} (due {{ b.due_date|date:"M j, Y H:i" }})</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <!-- OVERDUE -->
+    {% if overdue %}
+      <div class="alert alert-danger">
+        <strong>Overdue:</strong>
+        <ul class="mb-0">
+          {% for b in overdue %}
+            <li>{{ b.item.name }} (was due {{ b.due_date|date:"M j, Y H:i" }})</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <!-- ALL BORROWED ITEMS -->
+    <h2 class="mt-4">Your Borrowed Items</h2>
+    {% if borrowed_items %}
+      <ul class="list-group mb-5">
+        {% for b in borrowed_items %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ b.item.name }} — due {{ b.due_date|date:"M j, Y" }}
+            <a href="{% url 'borrow:return_item' b.id %}" class="btn btn-sm btn-outline-primary">Return</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-white mb-5">You have no items borrowed right now.</p>
+    {% endif %}
+
+    <!-- GLOBAL ACTIONS -->
+    <div class="d-flex gap-2 mb-5">
+      <a href="{% url 'borrow:index' %}" class="btn btn-primary">Browse Items</a>
+      <a href="{% url 'profile' %}" class="btn btn-primary">Your Profile</a>
+    </div>
+  {% endif %}
 {% endblock %}
