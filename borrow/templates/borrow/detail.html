@@ -14,6 +14,28 @@
     {% endif %}
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2>{{ object.name }}</h2>
+      {% if review_count > 0 %}
+      <div class="d-flex align-items-center">
+        <div class="me-2">
+          <span class="fs-4 fw-bold">{{ avg_review_score }}</span>
+          <span>/5</span>
+        </div>
+        <div>
+          {% for i in "12345" %}
+            {% if forloop.counter <= avg_review_score|floatformat:"0"|add:"0" %}
+              <span class="text-warning fs-4">★</span>
+            {% elif forloop.counter == avg_review_score|floatformat:"0"|add:"1" and avg_review_score|floatformat:"1"|slice:"-1:" != "0" %}
+              <span class="text-warning fs-4">★</span>
+            {% else %}
+              <span class="text-secondary fs-4">☆</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="ms-2">
+          ({{ review_count }} {% if review_count == 1 %}review{% else %}reviews{% endif %})
+        </div>
+      </div>
+      {% endif %}
     </div>
     <p><strong>Identification Number:</strong> {{ object.id }}</p>
     <p><strong>Quantity Available:</strong> {{ object.quantity }}</p>
