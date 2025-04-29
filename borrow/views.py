@@ -138,6 +138,12 @@ class DetailView(generic.DetailView):
             })
         context['borrowers_info'] = borrowers_info
         reviews = item.reviews.all().order_by('-created_at')
+        avg_score = 0
+        if reviews.exists():
+            total_rating = sum(review.rating for review in reviews)
+            avg_score = round(total_rating / reviews.count(), 1)
+        context['avg_review_score'] = avg_score
+        context['review_count'] = reviews.count()
         if self.request.user.is_authenticated:
             try:
                 patron = Patron.objects.get(user=self.request.user)
