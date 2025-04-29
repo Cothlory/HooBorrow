@@ -1,4 +1,4 @@
-{% extends "admin/base.html" %}
+{% extends "admin/login.html" %}
 {% load i18n %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -44,6 +44,18 @@
         background-color: #d9534f;
         padding: 10px;
         margin-bottom: 10px;
+    }
+    .back-to-app {
+      text-align: center;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    .back-to-app a {
+      text-decoration: none;
+      color: #444;
+    }
+    .back-to-app a:hover {
+      text-decoration: underline;
     }
 </style>
 {% endblock %}
