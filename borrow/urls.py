@@ -27,4 +27,7 @@ urlpatterns = [
     path('manage_items/', views.manage_items, name='manage_items'),
     path('manage_items/edit/<int:pk>/', views.edit_item, name='edit_item'),
     path('manage_items/delete/<int:pk>/', views.delete_item, name='delete_item'),
+    path('messages/', views.message_list, name='messages'),
+    path('messages/<int:message_id>/read/', views.mark_message_read, name='mark_message_read'),
+    path('messages/unread-count/', views.unread_message_count, name='unread_message_count'),
 ]
