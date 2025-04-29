@@ -13,10 +13,7 @@
           <p class="card-text">Manage your account settings and preferences.</p>
           <p class="card-text">Your current account type is <strong>{{ role }}</strong>.</p>
           <hr>
-          {% if user.patron %}
-            <p class="card-text">Name: {{ user.patron.name }}</p>
-          {% else %}
-            <p class="card-text">Name: {{ user.first_name }} {{ user.last_name}}</p>
+          <p class="card-text">Name: {{ user.patron.name }}</p>
           <p class="card-text">Email: {{ user.patron.email }}</p>
           <p class="card-text">Date Joined: {{ user.patron.user.date_joined }}</p>
 
