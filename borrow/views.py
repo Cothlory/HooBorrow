@@ -402,15 +402,18 @@ def manage_collections(request):
         creator = Patron.objects.get(user=request.user)
         is_librarian = False
     
-    my_collections = []
-    joined_collections = []
-
     my_collections = Collections.objects.filter(creator=creator).order_by("title")
-    joined_collections = Collections.objects.filter(allowed_users=creator).order_by("title")
+    
+    if is_librarian:
+        available_collections = Collections.objects.all().order_by("title")
+    else:
+        available_collections = Collections.objects.filter(
+            Q(is_collection_private=False) | Q(is_collection_private=True, allowed_users=creator)
+        ).order_by("title").distinct()
 
     return render(request, 'borrow/manage_collections.html', {
         'my_collections': my_collections,
-        'joined_collections': joined_collections,
+        'joined_collections': available_collections,
         'is_librarian': is_librarian,
     })
 
