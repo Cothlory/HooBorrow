@@ -152,6 +152,3 @@ Please follow the existing code style and write meaningful commit messages.
 ## License
 
 This project is released under the [MIT License](LICENSE).
-
-## Github Classroom
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/hLqvXyMi)
